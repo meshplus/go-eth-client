@@ -1,4 +1,4 @@
-module github.com/meshplus/go-client-eth
+module github.com/meshplus/go-eth-client
 
 go 1.15
 
