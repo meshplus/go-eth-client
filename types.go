@@ -43,6 +43,6 @@ type Transaction struct {
 	To               string
 	Value            big.Int
 	Gas              int
-	GasPrice         big.Int
+	GasPrice         *big.Int
 	payload          string
 }
