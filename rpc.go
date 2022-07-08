@@ -91,7 +91,7 @@ func New(url string, configPath string) (*EthRPC, error) {
 	return rpc, nil
 }
 
-func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) ([]byte, error) {
+func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) (*pb.Receipt, error) {
 	file, err := ioutil.ReadFile(abiPath)
 	if err != nil {
 		return nil, err
@@ -163,9 +163,12 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 			}
 			str = fmt.Sprintf("%s,%v", str, r)
 		}
-
 		str = strings.Trim(str, ",")
-		return []byte(str), nil
+		var receipt pb.Receipt
+		if sysErr := json.Unmarshal([]byte(str), &receipt); sysErr != nil {
+			return nil, sysErr
+		}
+		return &receipt, nil
 	} else {
 		gasLimit := uint64(1000000)
 		gasPrice, err := rpc.EthGasPrice()
@@ -192,7 +195,11 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		if err != nil {
 			return nil, err
 		}
-		return []byte(hash.String()), nil
+		var receipt pb.Receipt
+		if sysErr := json.Unmarshal([]byte(hash.String()), &receipt); sysErr != nil {
+			return nil, sysErr
+		}
+		return &receipt, nil
 	}
 }
 
@@ -391,10 +398,10 @@ func (rpc *EthRPC) EthGasPrice() (big.Int, error) {
 
 // EthGetTransactionReceipt returns the receipt of a transaction by transaction hash.
 // Note That the receipt is not available for pending transactions.
-func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types1.Receipt, error) {
-	Receipt := new(types1.Receipt)
+func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*pb.Receipt, error) {
+	var Receipt pb.Receipt
 	err := retry.Retry(func(attempt uint) error {
-		err := rpc.call("eth_getTransactionReceipt", Receipt, hash)
+		err := rpc.call("eth_getTransactionReceipt", &Receipt, hash)
 		if err != nil {
 			return err
 		}
@@ -406,7 +413,7 @@ func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types1.Receipt, 
 	if err != nil {
 		return nil, err
 	}
-	return Receipt, nil
+	return &Receipt, nil
 }
 
 // EthGetTransactionCount returns the number of transactions sent from an address.
@@ -452,7 +459,7 @@ func (rpc *EthRPC) EthSendTransaction(transaction *Transaction) (common.Hash, er
 	return rpc.EthSendRawTransaction(rawTx)
 }
 
-func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*types1.Receipt, error) {
+func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*pb.Receipt, error) {
 	too := common.HexToAddress(transaction.To)
 	pubkey := rpc.privateKey.Public()
 	publicKeyECDSA, ok := pubkey.(*ecdsa.PublicKey)
