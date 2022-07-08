@@ -44,6 +44,5 @@ type Transaction struct {
 	Value            big.Int
 	Gas              int
 	GasPrice         big.Int
-	Input            string
 	payload          string
 }
