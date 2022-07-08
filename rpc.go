@@ -167,7 +167,7 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		str = strings.Trim(str, ",")
 		return []byte(str), nil
 	} else {
-		gasLimit := uint64(100000000)
+		gasLimit := uint64(1000000)
 		gasPrice, err := rpc.EthGasPrice()
 		pubKey := rpc.privateKey.Public()
 		publicKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
@@ -192,7 +192,7 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		if err != nil {
 			return nil, err
 		}
-		return hash.Bytes(), nil
+		return []byte(hash.String()), nil
 	}
 }
 
@@ -258,7 +258,7 @@ func (rpc EthRPC) Deploy(codePath, argContract string, local bool) (string, *Com
 	if err != nil {
 		return "", nil, err
 	}
-
+	auth.GasLimit = 1000000
 	for i, bin := range compileResult.Bin {
 		if bin == "0x" {
 			continue

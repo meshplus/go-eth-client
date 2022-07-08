@@ -1,8 +1,8 @@
 package go_eth_client
 
 import (
-	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -31,11 +31,10 @@ func TestInvokeEthContract(t *testing.T) {
 	require.Nil(t, err)
 	require.NotEqual(t, "", address)
 	require.NotNil(t, result)
-	//TODO:send write tx err
-	res, err := client.InvokeEthContract("testdata/storage.abi", address, "store", "2")
+	_, err = client.InvokeEthContract("testdata/storage.abi", address, "store", "2")
 	require.Nil(t, err)
-	fmt.Println(res)
-	res, err = client.InvokeEthContract("testdata/storage.abi", address, "retrieve", "")
+	time.Sleep(time.Second * 1)
+	res, err := client.InvokeEthContract("testdata/storage.abi", address, "retrieve", "")
 	require.Nil(t, err)
-	fmt.Println(string(res))
+	require.Equal(t, "2", string(res))
 }

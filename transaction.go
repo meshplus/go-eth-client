@@ -4,8 +4,8 @@ import (
 	"math/big"
 )
 
-func (rpc *EthRPC) NewTransaction(nonce int, address string, amount *big.Int, gas int, gasPrice big.Int, packed string) Transaction {
-	return Transaction{
+func (rpc *EthRPC) NewTransaction(nonce int, address string, amount *big.Int, gas int, gasPrice big.Int, packed string) *Transaction {
+	return &Transaction{
 		Nonce:    nonce,
 		Gas:      gas,
 		To:       address,
