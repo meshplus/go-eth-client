@@ -41,8 +41,8 @@ type Transaction struct {
 	TransactionIndex *int
 	From             string
 	To               string
-	Value            big.Int
+	Value            *big.Int
 	Gas              int
-	GasPrice         *big.Int
+	GasPrice         big.Int
 	payload          string
 }
