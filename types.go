@@ -20,7 +20,7 @@ type EthError struct {
 
 type ethRequest struct {
 	ID      int           `json:"id"`
-	JSONRPC string        `json:"jsonrpc"`
+	JsonRPC string        `json:"jsonRPC"`
 	Method  string        `json:"method"`
 	Params  []interface{} `json:"params"`
 }

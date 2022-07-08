@@ -6,6 +6,20 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math/big"
+	"net/http"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"time"
+
+	"github.com/ethereum/go-ethereum"
+
+	"github.com/Rican7/retry/backoff"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -18,14 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/meshplus/bitxhub-model/pb"
-	"io/ioutil"
-	"log"
-	"math/big"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 const (
@@ -37,6 +43,7 @@ var _ Client = (*EthRPC)(nil)
 type EthRPC struct {
 	url        string
 	client     *http.Client
+	etherCli   *ethclient.Client
 	log        *log.Logger
 	Debug      bool
 	privateKey *ecdsa.PrivateKey
@@ -76,6 +83,7 @@ func New(url string, configPath string) (*EthRPC, error) {
 	rpc := &EthRPC{
 		url:        url,
 		client:     http.DefaultClient,
+		etherCli:   etherCli,
 		privateKey: unlockedKey.PrivateKey,
 		cid:        Cid,
 		log:        log.New(os.Stderr, "", log.LstdFlags),
@@ -83,15 +91,14 @@ func New(url string, configPath string) (*EthRPC, error) {
 	return rpc, nil
 }
 
-func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) (common.Hash, error) {
-	var hash common.Hash
+func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) ([]byte, error) {
 	file, err := ioutil.ReadFile(abiPath)
 	if err != nil {
-		return hash, err
+		return nil, err
 	}
 	ab, err := abi.JSON(bytes.NewReader(file))
 	if err != nil {
-		return hash, err
+		return nil, err
 	}
 	// prepare for invoke parameters
 	var argx []interface{}
@@ -113,37 +120,80 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		}
 		argx, err = Encode(ab, method, argArr...)
 		if err != nil {
-			return hash, err
+			return nil, err
 		}
 	}
+	fromAddress := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
+	toAddress := common.HexToAddress(address)
 	packed, err := ab.Pack(method, argx...)
 	if err != nil {
-		return hash, err
+		return nil, err
 	}
-	fmt.Printf("\n======= invoke function %s =======\n", method)
-	to := common.HexToAddress(address)
-	gasLimit := uint64(21000)
-	gasPrice, err := rpc.EthGasPrice()
-	pubkey := rpc.privateKey.Public()
-	publicKeyECDSA, ok := pubkey.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	msg := ethereum.CallMsg{From: fromAddress, To: &toAddress, Data: packed}
+	if ab.Methods[method].IsConstant() {
+		output, err := rpc.etherCli.CallContract(context.Background(), msg, nil)
+		if err != nil {
+			return nil, err
+		}
+		if len(output) == 0 {
+			if code, err := rpc.etherCli.CodeAt(context.Background(), toAddress, nil); err != nil {
+				return nil, err
+			} else if len(code) == 0 {
+				return nil, fmt.Errorf("no code at your contract addresss")
+			}
+			return nil, fmt.Errorf("output is empty")
+		}
+		// unpack result for display
+		result, err := UnpackOutput(ab, method, string(output))
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return nil, nil
+		}
+		str := ""
+		for _, r := range result {
+			if r != nil {
+				if reflect.TypeOf(r).String() == "[32]uint8" {
+					v, ok := r.([32]byte)
+					if ok {
+						r = string(v[:])
+					}
+				}
+			}
+			str = fmt.Sprintf("%s,%v", str, r)
+		}
+
+		str = strings.Trim(str, ",")
+		return []byte(str), nil
+	} else {
+		gasLimit := uint64(100000000)
+		gasPrice, err := rpc.EthGasPrice()
+		pubKey := rpc.privateKey.Public()
+		publicKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
+		if !ok {
+			log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+		}
+		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
+		tx := types1.NewTx(&types1.LegacyTx{
+			Nonce:    uint64(nonce),
+			To:       &toAddress,
+			Gas:      gasLimit,
+			GasPrice: &gasPrice,
+			Data:     packed,
+		})
+		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+		if err != nil {
+			return nil, err
+		}
+		data, err := signTx.MarshalBinary()
+		rawTx := hexutil.Bytes(data)
+		hash, err := rpc.EthSendRawTransaction(rawTx)
+		if err != nil {
+			return nil, err
+		}
+		return hash.Bytes(), nil
 	}
-	nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
-	tx := types1.NewTx(&types1.LegacyTx{
-		Nonce:    uint64(nonce),
-		To:       &to,
-		Gas:      gasLimit,
-		GasPrice: &gasPrice,
-		Data:     packed,
-	})
-	signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
-	if err != nil {
-		return hash, err
-	}
-	data, err := signTx.MarshalBinary()
-	rawTx := hexutil.Bytes(data)
-	return rpc.EthSendRawTransaction(rawTx)
 }
 
 func (rpc EthRPC) compileContract(code string) (*CompileResult, error) {
@@ -192,11 +242,7 @@ func (rpc EthRPC) Compile(codePath string, local bool) (*CompileResult, error) {
 	return result, nil
 }
 
-func (rpc EthRPC) Deploy(url, codePath, argContract string, local bool) (string, *CompileResult, error) {
-	etherCli, err := ethclient.Dial(url)
-	if err != nil {
-		return "", nil, err
-	}
+func (rpc EthRPC) Deploy(codePath, argContract string, local bool) (string, *CompileResult, error) {
 	// compile solidity first
 	compileResult, err := rpc.Compile(codePath, local)
 	if err != nil {
@@ -245,14 +291,14 @@ func (rpc EthRPC) Deploy(url, codePath, argContract string, local bool) (string,
 				return "", nil, err
 			}
 		}
-		addr1, tx, _, err := bind.DeployContract(auth, parsed, common.FromHex(code), etherCli, argx...)
+		addr1, tx, _, err := bind.DeployContract(auth, parsed, common.FromHex(code), rpc.etherCli, argx...)
 		addr = addr1
 		if err != nil {
 			return "", nil, err
 		}
 		var r *types1.Receipt
 		if err := retry.Retry(func(attempt uint) error {
-			r, err = etherCli.TransactionReceipt(context.Background(), tx.Hash())
+			r, err = rpc.etherCli.TransactionReceipt(context.Background(), tx.Hash())
 			if err != nil {
 				return err
 			}
@@ -272,7 +318,6 @@ func (rpc EthRPC) Deploy(url, codePath, argContract string, local bool) (string,
 		f := strings.TrimSuffix(base, ext)
 		filename := fmt.Sprintf("%s.abi", f)
 		p := filepath.Join(dir, filename)
-		fmt.Println(p)
 		err = ioutil.WriteFile(p, []byte(compileResult.Abi[i]), 0644)
 		if err != nil {
 			return "", nil, err
@@ -285,7 +330,7 @@ func (rpc EthRPC) Deploy(url, codePath, argContract string, local bool) (string,
 func (rpc *EthRPC) Call(method string, params ...interface{}) (json.RawMessage, error) {
 	request := ethRequest{
 		ID:      1,
-		JSONRPC: "2.0",
+		JsonRPC: "2.0",
 		Method:  method,
 		Params:  params,
 	}
@@ -330,6 +375,7 @@ func (rpc *EthRPC) call(method string, target interface{}, params ...interface{}
 	if target == nil {
 		return nil
 	}
+
 	return json.Unmarshal(result, target)
 }
 
@@ -345,13 +391,21 @@ func (rpc *EthRPC) EthGasPrice() (big.Int, error) {
 
 // EthGetTransactionReceipt returns the receipt of a transaction by transaction hash.
 // Note That the receipt is not available for pending transactions.
-func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*pb.Receipt, error) {
-	Receipt := new(pb.Receipt)
-	err := rpc.call("eth_getTransactionReceipt", Receipt, hash)
+func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types1.Receipt, error) {
+	Receipt := new(types1.Receipt)
+	err := retry.Retry(func(attempt uint) error {
+		err := rpc.call("eth_getTransactionReceipt", Receipt, hash)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+		strategy.Limit(5),
+		strategy.Backoff(backoff.Fibonacci(500*time.Millisecond)),
+	)
 	if err != nil {
 		return nil, err
 	}
-
 	return Receipt, nil
 }
 
@@ -398,7 +452,7 @@ func (rpc *EthRPC) EthSendTransaction(transaction *Transaction) (common.Hash, er
 	return rpc.EthSendRawTransaction(rawTx)
 }
 
-func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*pb.Receipt, error) {
+func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*types1.Receipt, error) {
 	too := common.HexToAddress(transaction.To)
 	pubkey := rpc.privateKey.Public()
 	publicKeyECDSA, ok := pubkey.(*ecdsa.PublicKey)

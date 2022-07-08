@@ -2,11 +2,12 @@ package go_eth_client
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"reflect"
 	"strconv"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func Encode(Abi abi.ABI, funcName string, args ...interface{}) ([]interface{}, error) {
@@ -47,6 +48,22 @@ func getMethod(ab abi.ABI, method string) (abi.Method, error) {
 	}
 
 	return abi.Method{}, fmt.Errorf("method %s is not existed", method)
+}
+
+func UnpackOutput(abi abi.ABI, method string, receipt string) ([]interface{}, error) {
+	m, err := getMethod(abi, method)
+	if err != nil {
+		return nil, fmt.Errorf("get method %w", err)
+	}
+	if len(m.Outputs) == 0 {
+		return nil, nil
+	}
+	receiptData := []byte(receipt)
+	res, err := abi.Unpack(method, receiptData)
+	if err != nil {
+		return nil, fmt.Errorf("unpack result %w", err)
+	}
+	return res, nil
 }
 
 func convert(t abi.Type, input interface{}) (interface{}, error) {
