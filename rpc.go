@@ -438,7 +438,7 @@ func (rpc *EthRPC) EthSendTransaction(transaction *Transaction) (common.Hash, er
 	tx := types1.NewTx(&types1.LegacyTx{
 		Nonce:    uint64(nonce),
 		To:       &too,
-		Value:    &transaction.Value,
+		Value:    transaction.Value,
 		Gas:      gasLimit,
 		GasPrice: &gasPrice,
 		Data:     []byte{},
@@ -468,7 +468,7 @@ func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*typ
 	tx := types1.NewTx(&types1.LegacyTx{
 		Nonce:    uint64(nonce),
 		To:       &too,
-		Value:    &transaction.Value,
+		Value:    transaction.Value,
 		Gas:      gasLimit,
 		GasPrice: &gasPrice,
 		Data:     []byte{},
