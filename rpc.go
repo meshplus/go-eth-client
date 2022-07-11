@@ -258,7 +258,7 @@ func (rpc EthRPC) Deploy(codePath, argContract string, local bool) (string, *Com
 	if err != nil {
 		return "", nil, err
 	}
-	auth.GasLimit = 1000000
+	auth.GasLimit = 100000000
 	for i, bin := range compileResult.Bin {
 		if bin == "0x" {
 			continue
