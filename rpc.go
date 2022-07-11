@@ -35,7 +35,8 @@ import (
 )
 
 const (
-	CONTRACT = "contract_"
+	CONTRACT  = "contract_"
+	BrokerABI = "[{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_bitxhubID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_appchainID\",\"type\":\"string\"},{\"internalType\":\"address[]\",\"name\":\"_validators\",\"type\":\"address[]\"},{\"internalType\":\"uint64\",\"name\":\"_valThreshold\",\"type\":\"uint64\"},{\"internalType\":\"address[]\",\"name\":\"_admins\",\"type\":\"address[]\"},{\"internalType\":\"uint64\",\"name\":\"_adminThreshold\",\"type\":\"uint64\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"index\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"dstFullID\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"srcFullID\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"func\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"bytes[]\",\"name\":\"args\",\"type\":\"bytes[]\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"}],\"name\":\"throwInterchainEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"index\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"dstFullID\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"srcFullID\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"typ\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"status\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"bytes[]\",\"name\":\"result\",\"type\":\"bytes[]\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"}],\"name\":\"throwReceiptEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"name\":\"throwReceiptStatus\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"int64\",\"name\":\"status\",\"type\":\"int64\"}],\"name\":\"audit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"destFullServiceID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"funcCall\",\"type\":\"string\"},{\"internalType\":\"bytes[]\",\"name\":\"args\",\"type\":\"bytes[]\"},{\"internalType\":\"string\",\"name\":\"funcCb\",\"type\":\"string\"},{\"internalType\":\"bytes[]\",\"name\":\"argsCb\",\"type\":\"bytes[]\"},{\"internalType\":\"string\",\"name\":\"funcRb\",\"type\":\"string\"},{\"internalType\":\"bytes[]\",\"name\":\"argsRb\",\"type\":\"bytes[]\"},{\"internalType\":\"bool\",\"name\":\"isEncrypt\",\"type\":\"bool\"}],\"name\":\"emitInterchainEvent\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"chainID\",\"type\":\"string\"}],\"name\":\"getAppchainInfo\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getCallbackMeta\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"\",\"type\":\"string[]\"},{\"internalType\":\"uint64[]\",\"name\":\"\",\"type\":\"uint64[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getChainID\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"id\",\"type\":\"string\"}],\"name\":\"getDirectTransactionMeta\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getDstRollbackMeta\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"\",\"type\":\"string[]\"},{\"internalType\":\"uint64[]\",\"name\":\"\",\"type\":\"uint64[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInnerMeta\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"\",\"type\":\"string[]\"},{\"internalType\":\"uint64[]\",\"name\":\"\",\"type\":\"uint64[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLocalServiceList\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"getLocalWhiteList\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"outServicePair\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"idx\",\"type\":\"uint64\"}],\"name\":\"getOutMessage\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"bytes[]\",\"name\":\"\",\"type\":\"bytes[]\"},{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getOuterMeta\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"\",\"type\":\"string[]\"},{\"internalType\":\"uint64[]\",\"name\":\"\",\"type\":\"uint64[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"remoteAddr\",\"type\":\"string\"}],\"name\":\"getRSWhiteList\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"inServicePair\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"idx\",\"type\":\"uint64\"}],\"name\":\"getReceiptMessage\",\"outputs\":[{\"internalType\":\"bytes[]\",\"name\":\"\",\"type\":\"bytes[]\"},{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getRemoteServiceList\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"srcFullID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"destAddr\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"index\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"typ\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"callFunc\",\"type\":\"string\"},{\"internalType\":\"bytes[]\",\"name\":\"args\",\"type\":\"bytes[]\"},{\"internalType\":\"uint64\",\"name\":\"txStatus\",\"type\":\"uint64\"},{\"internalType\":\"bytes[]\",\"name\":\"signatures\",\"type\":\"bytes[]\"},{\"internalType\":\"bool\",\"name\":\"isEncrypt\",\"type\":\"bool\"}],\"name\":\"invokeInterchain\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"srcAddr\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"dstFullID\",\"type\":\"string\"},{\"internalType\":\"uint64\",\"name\":\"index\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"typ\",\"type\":\"uint64\"},{\"internalType\":\"bytes[]\",\"name\":\"result\",\"type\":\"bytes[]\"},{\"internalType\":\"uint64\",\"name\":\"txStatus\",\"type\":\"uint64\"},{\"internalType\":\"bytes[]\",\"name\":\"signatures\",\"type\":\"bytes[]\"}],\"name\":\"invokeReceipt\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"register\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"chainID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"broker\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"ruleAddr\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"trustRoot\",\"type\":\"bytes\"}],\"name\":\"registerAppchain\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"registerDirectTransaction\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"chainID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"serviceID\",\"type\":\"string\"},{\"internalType\":\"address[]\",\"name\":\"whiteList\",\"type\":\"address[]\"}],\"name\":\"registerRemoteService\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 )
 
 var _ Client = (*EthRPC)(nil)
@@ -99,6 +100,107 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 	ab, err := abi.JSON(bytes.NewReader(file))
 	if err != nil {
 		return nil, err
+	}
+	// prepare for invoke parameters
+	var argx []interface{}
+	if len(args) != 0 {
+		argSplits := strings.Split(args, "^")
+		var argArr []interface{}
+		for _, arg := range argSplits {
+			if strings.Index(arg, "[") == 0 && strings.LastIndex(arg, "]") == len(arg)-1 {
+				if len(arg) == 2 {
+					argArr = append(argArr, make([]string, 0))
+					continue
+				}
+				// deal with slice
+				argSp := strings.Split(arg[1:len(arg)-1], ",")
+				argArr = append(argArr, argSp)
+				continue
+			}
+			argArr = append(argArr, arg)
+		}
+		argx, err = Encode(ab, method, argArr...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	fromAddress := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
+	toAddress := common.HexToAddress(address)
+	packed, err := ab.Pack(method, argx...)
+	if err != nil {
+		return nil, err
+	}
+	msg := ethereum.CallMsg{From: fromAddress, To: &toAddress, Data: packed}
+	if ab.Methods[method].IsConstant() {
+		output, err := rpc.etherCli.CallContract(context.Background(), msg, nil)
+		if err != nil {
+			return nil, err
+		}
+		if len(output) == 0 {
+			if code, err := rpc.etherCli.CodeAt(context.Background(), toAddress, nil); err != nil {
+				return nil, err
+			} else if len(code) == 0 {
+				return nil, fmt.Errorf("no code at your contract addresss")
+			}
+			return nil, fmt.Errorf("output is empty")
+		}
+		// unpack result for display
+		result, err := UnpackOutput(ab, method, string(output))
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return nil, nil
+		}
+		str := ""
+		for _, r := range result {
+			if r != nil {
+				if reflect.TypeOf(r).String() == "[32]uint8" {
+					v, ok := r.([32]byte)
+					if ok {
+						r = string(v[:])
+					}
+				}
+			}
+			str = fmt.Sprintf("%s,%v", str, r)
+		}
+
+		str = strings.Trim(str, ",")
+		return []byte(str), nil
+	} else {
+		gasLimit := uint64(1000000)
+		gasPrice, err := rpc.EthGasPrice()
+		pubKey := rpc.privateKey.Public()
+		publicKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
+		if !ok {
+			log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+		}
+		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
+		tx := types1.NewTx(&types1.LegacyTx{
+			Nonce:    uint64(nonce),
+			To:       &toAddress,
+			Gas:      gasLimit,
+			GasPrice: &gasPrice,
+			Data:     packed,
+		})
+		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+		if err != nil {
+			return nil, err
+		}
+		data, err := signTx.MarshalBinary()
+		rawTx := hexutil.Bytes(data)
+		hash, err := rpc.EthSendRawTransaction(rawTx)
+		if err != nil {
+			return nil, err
+		}
+		return []byte(hash.String()), nil
+	}
+}
+
+func (rpc EthRPC) InvokeEthContractByDefaultAbi(address string, method, args string) ([]byte, error) {
+	ab, err := abi.JSON(bytes.NewReader([]byte(BrokerABI)))
+	if err != nil {
+		return nil, fmt.Errorf("abi unmarshal: %s", err.Error())
 	}
 	// prepare for invoke parameters
 	var argx []interface{}
