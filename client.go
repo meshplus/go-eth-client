@@ -11,7 +11,7 @@ import (
 )
 
 type Client interface {
-	InvokeEthContract(abiPath, address string, method, args string) ([]byte, error)
+	InvokeEthContract(abiPath, address string, method, args string) ([]interface{}, error)
 	Compile(codePath string, local bool) (*CompileResult, error)
 	Deploy(codePath, argContract string, local bool) (string, *CompileResult, error)
 	Call(method string, params ...interface{}) (json.RawMessage, error)

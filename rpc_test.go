@@ -1,6 +1,7 @@
 package go_eth_client
 
 import (
+	"math/big"
 	"testing"
 	"time"
 
@@ -36,5 +37,7 @@ func TestInvokeEthContract(t *testing.T) {
 	time.Sleep(time.Second * 1)
 	res, err := client.InvokeEthContract("testdata/storage.abi", address, "retrieve", "")
 	require.Nil(t, err)
-	require.Equal(t, "2", string(res))
+	v, ok := res[0].(*big.Int)
+	require.Equal(t, true, ok)
+	require.Equal(t, "2", v.String())
 }

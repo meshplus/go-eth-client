@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -92,7 +91,7 @@ func New(url string, configPath string) (*EthRPC, error) {
 	return rpc, nil
 }
 
-func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) ([]byte, error) {
+func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) ([]interface{}, error) {
 	file, err := ioutil.ReadFile(abiPath)
 	if err != nil {
 		return nil, err
@@ -152,21 +151,7 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		if result == nil {
 			return nil, nil
 		}
-		str := ""
-		for _, r := range result {
-			if r != nil {
-				if reflect.TypeOf(r).String() == "[32]uint8" {
-					v, ok := r.([32]byte)
-					if ok {
-						r = string(v[:])
-					}
-				}
-			}
-			str = fmt.Sprintf("%s,%v", str, r)
-		}
-
-		str = strings.Trim(str, ",")
-		return []byte(str), nil
+		return result, nil
 	} else {
 		gasLimit := uint64(1000000)
 		gasPrice, err := rpc.EthGasPrice()
@@ -193,11 +178,13 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		if err != nil {
 			return nil, err
 		}
-		return []byte(hash.String()), nil
+		var res []interface{}
+		res = append(res, hash)
+		return res, nil
 	}
 }
 
-func (rpc EthRPC) InvokeEthContractByDefaultAbi(ab ethabi.ABI, address string, method, args string) ([]byte, error) {
+func (rpc EthRPC) InvokeEthContractByDefaultAbi(ab ethabi.ABI, address string, method, args string) ([]interface{}, error) {
 	// prepare for invoke parameters
 	var argx []interface{}
 	var err error
@@ -250,21 +237,7 @@ func (rpc EthRPC) InvokeEthContractByDefaultAbi(ab ethabi.ABI, address string, m
 		if result == nil {
 			return nil, nil
 		}
-		str := ""
-		for _, r := range result {
-			if r != nil {
-				if reflect.TypeOf(r).String() == "[32]uint8" {
-					v, ok := r.([32]byte)
-					if ok {
-						r = string(v[:])
-					}
-				}
-			}
-			str = fmt.Sprintf("%s,%v", str, r)
-		}
-
-		str = strings.Trim(str, ",")
-		return []byte(str), nil
+		return result, nil
 	} else {
 		gasLimit := uint64(1000000)
 		gasPrice, err := rpc.EthGasPrice()
@@ -291,7 +264,9 @@ func (rpc EthRPC) InvokeEthContractByDefaultAbi(ab ethabi.ABI, address string, m
 		if err != nil {
 			return nil, err
 		}
-		return []byte(hash.String()), nil
+		var res []interface{}
+		res = append(res, hash)
+		return res, nil
 	}
 }
 
