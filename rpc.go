@@ -31,7 +31,6 @@ import (
 	types1 "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/meshplus/bitxhub-model/pb"
 )
 
 const (
@@ -576,7 +575,7 @@ func (rpc *EthRPC) EthGetBalance(address, block string) (big.Int, error) {
 	return ParseBigInt(response)
 }
 
-func (rpc *EthRPC) InvokeContract(transaction *Transaction) (*pb.Receipt, error) {
+func (rpc *EthRPC) InvokeContract(transaction *Transaction) (*types1.Receipt, error) {
 	var method string
 	method = CONTRACT + "invokeContract"
 	param := transaction.Serialize()
@@ -584,7 +583,7 @@ func (rpc *EthRPC) InvokeContract(transaction *Transaction) (*pb.Receipt, error)
 	if err != nil {
 		return nil, err
 	}
-	var receipt pb.Receipt
+	var receipt types1.Receipt
 	if sysErr := json.Unmarshal(data, &receipt); sysErr != nil {
 		return nil, err
 	}
