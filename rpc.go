@@ -577,13 +577,7 @@ func (rpc *EthRPC) EthGetBalance(address, block string) (big.Int, error) {
 
 func (rpc *EthRPC) InvokeContract(method string, params ...interface{}) (*types1.Receipt, error) {
 	method = CONTRACT + "invokeContract"
-	data, err := rpc.Call(method, params)
-	if err != nil {
-		return nil, err
-	}
 	var receipt types1.Receipt
-	if sysErr := json.Unmarshal(data, &receipt); sysErr != nil {
-		return nil, sysErr
-	}
-	return &receipt, nil
+	err := rpc.call(method, &receipt, params)
+	return &receipt, err
 }
