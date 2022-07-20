@@ -575,10 +575,10 @@ func (rpc *EthRPC) EthGetBalance(address, block string) (big.Int, error) {
 	return ParseBigInt(response)
 }
 
-func (rpc *EthRPC) InvokeContract(method string, params ...interface{}) (*types1.Receipt, error) {
+func (rpc *EthRPC) InvokeContract(method string, params ...interface{}) (types1.Receipt, error) {
 	method = CONTRACT + "invokeContract"
-	var target *types1.Receipt
-	err := rpc.call(method, target, params)
+	var target types1.Receipt
+	err := rpc.call(method, &target, params)
 	if err != nil {
 		return target, err
 	}
