@@ -575,17 +575,12 @@ func (rpc *EthRPC) EthGetBalance(address, block string) (big.Int, error) {
 	return ParseBigInt(response)
 }
 
-func (rpc *EthRPC) InvokeContract(transaction *Transaction) (*types1.Receipt, error) {
-	var method string
+func (rpc *EthRPC) InvokeContract(method string, params ...interface{}) (*types1.Receipt, error) {
 	method = CONTRACT + "invokeContract"
-	param := transaction.Serialize()
-	data, err := rpc.Call(method, param)
+	var target *types1.Receipt
+	err := rpc.call(method, target, params)
 	if err != nil {
-		return nil, err
+		return target, err
 	}
-	var receipt types1.Receipt
-	if sysErr := json.Unmarshal(data, &receipt); sysErr != nil {
-		return nil, err
-	}
-	return &receipt, nil
+	return target, nil
 }
