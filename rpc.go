@@ -582,12 +582,12 @@ func (rpc *EthRPC) InvokeContract(method string, params ...interface{}) (*types1
 	return &receipt, err
 }
 
-func (rpc EthRPC) Invoke(ab ethabi.ABI, address string, method string, args []interface{}) ([]interface{}, error) {
+func (rpc EthRPC) Invoke(ab ethabi.ABI, address string, method string, args ...interface{}) ([]interface{}, error) {
 	// prepare for invoke parameters
 	var err error
 	fromAddress := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
 	toAddress := common.HexToAddress(address)
-	packed, err := ab.Pack(method, args)
+	packed, err := ab.Pack(method, args...)
 	if err != nil {
 		return nil, err
 	}

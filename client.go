@@ -24,5 +24,5 @@ type Client interface {
 	EthSendRawTransaction(data hexutil.Bytes) (common.Hash, error)
 	EthGetBalance(address, block string) (big.Int, error)
 	InvokeContract(method string, params ...interface{}) (*types1.Receipt, error)
-	Invoke(ab ethabi.ABI, address string, method string, args []interface{}) ([]interface{}, error)
+	Invoke(ab ethabi.ABI, address string, method string, args ...interface{}) ([]interface{}, error)
 }
