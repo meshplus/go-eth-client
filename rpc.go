@@ -203,6 +203,7 @@ func (rpc EthRPC) InvokeEthContractByDefaultAbi(ab ethabi.ABI, address string, m
 			}
 			argArr = append(argArr, arg)
 		}
+		fmt.Println("argArr", argArr)
 		argx, err = Encode(ab, method, argArr...)
 		if err != nil {
 			return nil, err
@@ -579,4 +580,68 @@ func (rpc *EthRPC) InvokeContract(method string, params ...interface{}) (*types1
 	var receipt types1.Receipt
 	err := rpc.call(method, &receipt, params)
 	return &receipt, err
+}
+
+func (rpc EthRPC) Invoke(ab ethabi.ABI, address string, method string, args []interface{}) ([]interface{}, error) {
+	// prepare for invoke parameters
+	var err error
+	fromAddress := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
+	toAddress := common.HexToAddress(address)
+	packed, err := ab.Pack(method, args)
+	if err != nil {
+		return nil, err
+	}
+	msg := ethereum.CallMsg{From: fromAddress, To: &toAddress, Data: packed}
+	if ab.Methods[method].IsConstant() {
+		output, err := rpc.etherCli.CallContract(context.Background(), msg, nil)
+		if err != nil {
+			return nil, err
+		}
+		if len(output) == 0 {
+			if code, err := rpc.etherCli.CodeAt(context.Background(), toAddress, nil); err != nil {
+				return nil, err
+			} else if len(code) == 0 {
+				return nil, fmt.Errorf("no code at your contract addresss")
+			}
+			return nil, fmt.Errorf("output is empty")
+		}
+		// unpack result for display
+		result, err := UnpackOutput(ab, method, string(output))
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return nil, nil
+		}
+		return result, nil
+	} else {
+		gasLimit := uint64(1000000)
+		gasPrice, err := rpc.EthGasPrice()
+		pubKey := rpc.privateKey.Public()
+		publicKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
+		if !ok {
+			log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+		}
+		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
+		tx := types1.NewTx(&types1.LegacyTx{
+			Nonce:    uint64(nonce),
+			To:       &toAddress,
+			Gas:      gasLimit,
+			GasPrice: &gasPrice,
+			Data:     packed,
+		})
+		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+		if err != nil {
+			return nil, err
+		}
+		data, err := signTx.MarshalBinary()
+		rawTx := hexutil.Bytes(data)
+		hash, err := rpc.EthSendRawTransaction(rawTx)
+		if err != nil {
+			return nil, err
+		}
+		var res []interface{}
+		res = append(res, hash)
+		return res, nil
+	}
 }
