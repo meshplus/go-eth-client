@@ -203,7 +203,6 @@ func (rpc EthRPC) InvokeEthContractByDefaultAbi(ab ethabi.ABI, address string, m
 			}
 			argArr = append(argArr, arg)
 		}
-		fmt.Println("argArr", argArr)
 		argx, err = Encode(ab, method, argArr...)
 		if err != nil {
 			return nil, err
