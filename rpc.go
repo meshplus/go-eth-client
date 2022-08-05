@@ -15,12 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-
-	"github.com/Rican7/retry/backoff"
-
 	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -31,10 +29,6 @@ import (
 	types1 "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-)
-
-const (
-	CONTRACT = "contract_"
 )
 
 var _ Client = (*EthRPC)(nil)
@@ -154,12 +148,18 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 	} else {
 		gasLimit := uint64(1000000)
 		gasPrice, err := rpc.EthGasPrice()
+		if err != nil {
+			return nil, err
+		}
 		pubKey := rpc.privateKey.Public()
 		publicKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
 		if !ok {
 			log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
 		}
 		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
+		if err != nil {
+			return nil, err
+		}
 		tx := types1.NewTx(&types1.LegacyTx{
 			Nonce:    uint64(nonce),
 			To:       &toAddress,
@@ -167,11 +167,14 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 			GasPrice: &gasPrice,
 			Data:     packed,
 		})
-		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(rpc.cid), rpc.privateKey)
 		if err != nil {
 			return nil, err
 		}
 		data, err := signTx.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
 		rawTx := hexutil.Bytes(data)
 		hash, err := rpc.EthSendRawTransaction(rawTx)
 		if err != nil {
@@ -422,6 +425,9 @@ func (rpc *EthRPC) EthSendTransaction(transaction *Transaction) (common.Hash, er
 	}
 	gasLimit := uint64(21000)
 	gasPrice, err := rpc.EthGasPrice()
+	if err != nil {
+		return hash, err
+	}
 	tx := types1.NewTx(&types1.LegacyTx{
 		Nonce:    uint64(nonce),
 		To:       &too,
@@ -430,11 +436,14 @@ func (rpc *EthRPC) EthSendTransaction(transaction *Transaction) (common.Hash, er
 		GasPrice: &gasPrice,
 		Data:     []byte{},
 	})
-	signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+	signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(rpc.cid), rpc.privateKey)
 	if err != nil {
 		return hash, err
 	}
 	data, err := signTx.MarshalBinary()
+	if err != nil {
+		return hash, err
+	}
 	rawTx := hexutil.Bytes(data)
 	return rpc.EthSendRawTransaction(rawTx)
 }
@@ -452,6 +461,9 @@ func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*typ
 	}
 	gasLimit := uint64(21000)
 	gasPrice, err := rpc.EthGasPrice()
+	if err != nil {
+		return nil, err
+	}
 	tx := types1.NewTx(&types1.LegacyTx{
 		Nonce:    uint64(nonce),
 		To:       &too,
@@ -460,11 +472,14 @@ func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *Transaction) (*typ
 		GasPrice: &gasPrice,
 		Data:     []byte{},
 	})
-	signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+	signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(rpc.cid), rpc.privateKey)
 	if err != nil {
 		return nil, err
 	}
 	data, err := signTx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 	rawTx := hexutil.Bytes(data)
 	hash, err := rpc.EthSendRawTransaction(rawTx)
 	if err != nil {
@@ -524,12 +539,18 @@ func (rpc EthRPC) Invoke(ab ethabi.ABI, address string, method string, args ...i
 	} else {
 		gasLimit := uint64(1000000)
 		gasPrice, err := rpc.EthGasPrice()
+		if err != nil {
+			return nil, err
+		}
 		pubKey := rpc.privateKey.Public()
 		publicKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
 		if !ok {
 			log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
 		}
 		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
+		if err != nil {
+			return nil, err
+		}
 		tx := types1.NewTx(&types1.LegacyTx{
 			Nonce:    uint64(nonce),
 			To:       &toAddress,
@@ -537,11 +558,14 @@ func (rpc EthRPC) Invoke(ab ethabi.ABI, address string, method string, args ...i
 			GasPrice: &gasPrice,
 			Data:     packed,
 		})
-		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(big.NewInt(1356)), rpc.privateKey)
+		signTx, err := types1.SignTx(tx, types1.NewEIP155Signer(rpc.cid), rpc.privateKey)
 		if err != nil {
 			return nil, err
 		}
 		data, err := signTx.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
 		rawTx := hexutil.Bytes(data)
 		hash, err := rpc.EthSendRawTransaction(rawTx)
 		if err != nil {
