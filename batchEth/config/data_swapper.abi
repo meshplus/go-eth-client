@@ -1,0 +1,123 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "destChainServiceID",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			}
+		],
+		"name": "get",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes[]",
+				"name": "args",
+				"type": "bytes[]"
+			},
+			{
+				"internalType": "bool",
+				"name": "isRollback",
+				"type": "bool"
+			}
+		],
+		"name": "interchainGet",
+		"outputs": [
+			{
+				"internalType": "bytes[]",
+				"name": "",
+				"type": "bytes[]"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes[]",
+				"name": "args",
+				"type": "bytes[]"
+			}
+		],
+		"name": "interchainSet",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bool",
+				"name": "_ordered",
+				"type": "bool"
+			}
+		],
+		"name": "register",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "value",
+				"type": "string"
+			}
+		],
+		"name": "set",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_brokerAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "_ordered",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			}
+		],
+		"name": "getData",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
