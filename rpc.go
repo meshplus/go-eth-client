@@ -84,7 +84,7 @@ func New(url string, configPath string) (*EthRPC, error) {
 	return rpc, nil
 }
 
-func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string) ([]interface{}, error) {
+func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string, inputNonce uint64) ([]interface{}, error) {
 	file, err := ioutil.ReadFile(abiPath)
 	if err != nil {
 		return nil, err
@@ -156,10 +156,16 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 		if !ok {
 			log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
 		}
-		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
-		if err != nil {
-			return nil, err
+		var nonce int
+		if inputNonce == 0 {
+			nonce, err = rpc.EthGetTransactionCount(crypto.PubkeyToAddress(*publicKeyECDSA).String(), "latest")
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			nonce = int(inputNonce)
 		}
+
 		tx := types1.NewTx(&types1.LegacyTx{
 			Nonce:    uint64(nonce),
 			To:       &toAddress,
