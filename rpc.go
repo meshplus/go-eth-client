@@ -33,6 +33,8 @@ import (
 
 var _ Client = (*EthRPC)(nil)
 
+type Option func(opts *bind.TransactOpts)
+
 type EthRPC struct {
 	url        string
 	client     *http.Client
@@ -237,7 +239,7 @@ func (rpc *EthRPC) Compile(codePath string, local bool) (*CompileResult, error) 
 	return result, nil
 }
 
-func (rpc *EthRPC) Deploy(codePath, argContract string, local bool) (string, *CompileResult, error) {
+func (rpc *EthRPC) Deploy(codePath, argContract string, local bool, opts ...Option) (string, *CompileResult, error) {
 	// compile solidity first
 	compileResult, err := rpc.Compile(codePath, local)
 	if err != nil {
@@ -254,6 +256,9 @@ func (rpc *EthRPC) Deploy(codePath, argContract string, local bool) (string, *Co
 		return "", nil, err
 	}
 	auth.GasLimit = 100000000
+	for _, opt := range opts {
+		opt(auth)
+	}
 	for i, bin := range compileResult.Bin {
 		if bin == "0x" {
 			continue
@@ -306,19 +311,78 @@ func (rpc *EthRPC) Deploy(codePath, argContract string, local bool) (string, *Co
 		if r.Status == types1.ReceiptStatusFailed {
 			return "", nil, fmt.Errorf("deploy contract failed, tx hash is: %s", r.TxHash.Hex())
 		}
-		//write abi file
-		dir := filepath.Dir(compileResult.Types[i])
-		base := filepath.Base(compileResult.Types[i])
-		ext := filepath.Ext(compileResult.Types[i])
-		f := strings.TrimSuffix(base, ext)
-		filename := fmt.Sprintf("%s.abi", f)
-		p := filepath.Join(dir, filename)
-		err = ioutil.WriteFile(p, []byte(compileResult.Abi[i]), 0644)
-		if err != nil {
-			return "", nil, err
-		}
 	}
 	return addr.Hex(), compileResult, nil
+}
+
+func (rpc *EthRPC) DeployByCompileResult(compileResult *CompileResult, argContract string, opts ...Option) (string, error) {
+	var addr common.Address
+
+	if len(compileResult.Abi) == 0 || len(compileResult.Bin) == 0 || len(compileResult.Types) == 0 {
+		return "", fmt.Errorf("empty contract")
+	}
+	auth, err := bind.NewKeyedTransactorWithChainID(rpc.privateKey, rpc.cid)
+	if err != nil {
+		return "", err
+	}
+	auth.GasLimit = 100000000
+	for _, opt := range opts {
+		opt(auth)
+	}
+	for i, bin := range compileResult.Bin {
+		if bin == "0x" {
+			continue
+		}
+		parsed, err := abi.JSON(strings.NewReader(compileResult.Abi[i]))
+		if err != nil {
+			return "", err
+		}
+		code := strings.TrimPrefix(strings.TrimSpace(bin), "0x")
+		// prepare for constructor parameters
+		var argx []interface{}
+		if len(argContract) != 0 {
+			argSplits := strings.Split(argContract, "^")
+			var argArr []interface{}
+			for _, arg := range argSplits {
+				if strings.Index(arg, "[") == 0 && strings.LastIndex(arg, "]") == len(arg)-1 {
+					if len(arg) == 2 {
+						argArr = append(argArr, make([]string, 0))
+						continue
+					}
+					// deal with slice
+					argSp := strings.Split(arg[1:len(arg)-1], ",")
+					argArr = append(argArr, argSp)
+					continue
+				}
+				argArr = append(argArr, arg)
+			}
+			argx, err = Encode(parsed, "", argArr...)
+			if err != nil {
+				return "", err
+			}
+		}
+		addr1, tx, _, err := bind.DeployContract(auth, parsed, common.FromHex(code), rpc.etherCli, argx...)
+		addr = addr1
+		if err != nil {
+			return "", err
+		}
+		var r *types1.Receipt
+		if err := retry.Retry(func(attempt uint) error {
+			r, err = rpc.etherCli.TransactionReceipt(context.Background(), tx.Hash())
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, strategy.Wait(1*time.Second)); err != nil {
+			return "", err
+		}
+
+		if r.Status == types1.ReceiptStatusFailed {
+			return "", fmt.Errorf("deploy contract failed, tx hash is: %s", r.TxHash.Hex())
+		}
+	}
+	return addr.Hex(), nil
 }
 
 // Call returns raw response of method call
@@ -579,5 +643,17 @@ func (rpc *EthRPC) Invoke(ab ethabi.ABI, address string, method string, args ...
 		var res []interface{}
 		res = append(res, hash)
 		return res, nil
+	}
+}
+
+func WithNonce(nonce *big.Int) Option {
+	return func(opts *bind.TransactOpts) {
+		opts.Nonce = nonce
+	}
+}
+
+func WithGasLimit(gasLimit uint64) Option {
+	return func(opts *bind.TransactOpts) {
+		opts.GasLimit = gasLimit
 	}
 }
