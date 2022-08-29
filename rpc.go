@@ -44,27 +44,7 @@ type EthRPC struct {
 }
 
 // New create new rpc client with given url
-func New(url string, configPath string) (*EthRPC, error) {
-	var keyPath string
-	keyPath = filepath.Join(configPath, "account.key")
-
-	keyByte, err := ioutil.ReadFile(keyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var password string
-	psdPath := filepath.Join(configPath, "password")
-	psd, err := ioutil.ReadFile(psdPath)
-	if err != nil {
-		return nil, err
-	}
-	password = strings.TrimSpace(string(psd))
-
-	unlockedKey, err := keystore.DecryptKey(keyByte, password)
-	if err != nil {
-		return nil, err
-	}
+func New(url string, pk *ecdsa.PrivateKey) (*EthRPC, error) {
 	etherCli, err := ethclient.Dial(url)
 	if err != nil {
 		return nil, err
@@ -77,14 +57,33 @@ func New(url string, configPath string) (*EthRPC, error) {
 		url:        url,
 		client:     http.DefaultClient,
 		etherCli:   etherCli,
-		privateKey: unlockedKey.PrivateKey,
+		privateKey: pk,
 		cid:        Cid,
 		log:        log.New(os.Stderr, "", log.LstdFlags),
 	}
 	return rpc, nil
 }
 
-func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string, inputNonce uint64) ([]interface{}, error) {
+func LoadAccount(configPath string) (*keystore.Key, error) {
+	keyPath := filepath.Join(configPath, "account.key")
+	keyByte, err := ioutil.ReadFile(keyPath)
+	if err != nil {
+		return nil, err
+	}
+	psdPath := filepath.Join(configPath, "password")
+	psd, err := ioutil.ReadFile(psdPath)
+	if err != nil {
+		return nil, err
+	}
+	password := strings.TrimSpace(string(psd))
+	unlockedKey, err := keystore.DecryptKey(keyByte, password)
+	if err != nil {
+		return nil, err
+	}
+	return unlockedKey, nil
+}
+
+func (rpc *EthRPC) InvokeEthContract(abiPath, address string, method, args string, inputNonce uint64) ([]interface{}, error) {
 	file, err := ioutil.ReadFile(abiPath)
 	if err != nil {
 		return nil, err
@@ -192,7 +191,7 @@ func (rpc EthRPC) InvokeEthContract(abiPath, address string, method, args string
 	}
 }
 
-func (rpc EthRPC) compileContract(code string) (*CompileResult, error) {
+func (rpc *EthRPC) compileContract(code string) (*CompileResult, error) {
 	data, err := rpc.Call("contract_"+"compileContract", code)
 	if err != nil {
 		return nil, err
@@ -205,7 +204,7 @@ func (rpc EthRPC) compileContract(code string) (*CompileResult, error) {
 	return &cr, nil
 }
 
-func (rpc EthRPC) Compile(codePath string, local bool) (*CompileResult, error) {
+func (rpc *EthRPC) Compile(codePath string, local bool) (*CompileResult, error) {
 	if !local {
 		return rpc.compileContract(codePath)
 	}
@@ -238,7 +237,7 @@ func (rpc EthRPC) Compile(codePath string, local bool) (*CompileResult, error) {
 	return result, nil
 }
 
-func (rpc EthRPC) Deploy(codePath, argContract string, local bool) (string, *CompileResult, error) {
+func (rpc *EthRPC) Deploy(codePath, argContract string, local bool) (string, *CompileResult, error) {
 	// compile solidity first
 	compileResult, err := rpc.Compile(codePath, local)
 	if err != nil {
@@ -510,7 +509,7 @@ func (rpc *EthRPC) EthGetBalance(address, block string) (big.Int, error) {
 	return ParseBigInt(response)
 }
 
-func (rpc EthRPC) Invoke(ab ethabi.ABI, address string, method string, args ...interface{}) ([]interface{}, error) {
+func (rpc *EthRPC) Invoke(ab ethabi.ABI, address string, method string, args ...interface{}) ([]interface{}, error) {
 	// prepare for invoke parameters
 	var err error
 	fromAddress := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)

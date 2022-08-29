@@ -9,7 +9,9 @@ import (
 )
 
 func TestDeploy(t *testing.T) {
-	client, err := New("http://localhost:8881", "testdata/config")
+	account, err := LoadAccount("testdata/config")
+	require.Nil(t, err)
+	client, err := New("http://localhost:8881", account.PrivateKey)
 	require.Nil(t, err)
 	address, result, err := client.Deploy("testdata/storage.sol", "", true)
 	require.Nil(t, err)
@@ -18,7 +20,9 @@ func TestDeploy(t *testing.T) {
 }
 
 func TestCompile(t *testing.T) {
-	client, err := New("http://localhost:8881", "testdata/config")
+	account, err := LoadAccount("testdata/config")
+	require.Nil(t, err)
+	client, err := New("http://localhost:8881", account.PrivateKey)
 	require.Nil(t, err)
 	result, err := client.Compile("testdata/storage.sol", true)
 	require.Nil(t, err)
@@ -26,7 +30,9 @@ func TestCompile(t *testing.T) {
 }
 
 func TestInvokeEthContract(t *testing.T) {
-	client, err := New("http://localhost:8881", "testdata/config")
+	account, err := LoadAccount("testdata/config")
+	require.Nil(t, err)
+	client, err := New("http://localhost:8881", account.PrivateKey)
 	require.Nil(t, err)
 	address, result, err := client.Deploy("testdata/storage.sol", "", true)
 	require.Nil(t, err)

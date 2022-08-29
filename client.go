@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"math/big"
 
-	types1 "github.com/ethereum/go-ethereum/core/types"
-
 	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	types1 "github.com/ethereum/go-ethereum/core/types"
 )
 
 type Client interface {

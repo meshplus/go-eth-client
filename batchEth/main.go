@@ -2,10 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -15,27 +11,15 @@ import (
 var nonce uint64
 
 func main() {
-	client, err := rpcx.New("http://localhost:8545", "./batchEth/config")
-	keyPath := filepath.Join("./batchEth/config", "account.key")
-
-	keyByte, err := ioutil.ReadFile(keyPath)
+	account, err := rpcx.LoadAccount("./batchEth/config")
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	var password string
-	psdPath := filepath.Join("./batchEth/config", "password")
-	psd, err := ioutil.ReadFile(psdPath)
+	client, err := rpcx.New("http://localhost:8545", account.PrivateKey)
 	if err != nil {
 		fmt.Println(err)
 	}
-	password = strings.TrimSpace(string(psd))
-
-	unlockedKey, err := keystore.DecryptKey(keyByte, password)
-	if err != nil {
-		fmt.Println(err)
-	}
-	latestNonce, err := client.EthGetTransactionCount(unlockedKey.Address.String(), "latest")
+	latestNonce, err := client.EthGetTransactionCount(account.Address.String(), "latest")
 	if err != nil {
 		fmt.Println(err)
 	}
