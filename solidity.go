@@ -10,8 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func Encode(Abi abi.ABI, funcName string, args ...interface{}) ([]interface{}, error) {
-
+func Encode(Abi *abi.ABI, funcName string, args ...interface{}) ([]interface{}, error) {
 	var method abi.Method
 	var err error
 
@@ -29,28 +28,25 @@ func Encode(Abi abi.ABI, funcName string, args ...interface{}) ([]interface{}, e
 	}
 
 	typedArgs := make([]interface{}, len(method.Inputs))
-
 	for idx, input := range method.Inputs {
 		typedArgs[idx], err = convert(input.Type, args[idx])
 		if err != nil {
 			return nil, fmt.Errorf("convert %s to %s failed: %s", args[idx], input.Type.String(), err.Error())
 		}
 	}
-
 	return typedArgs, nil
 }
 
-func getMethod(ab abi.ABI, method string) (abi.Method, error) {
+func getMethod(ab *abi.ABI, method string) (abi.Method, error) {
 	for k, v := range ab.Methods {
 		if k == method {
 			return v, nil
 		}
 	}
-
 	return abi.Method{}, fmt.Errorf("method %s is not existed", method)
 }
 
-func UnpackOutput(abi abi.ABI, method string, receipt string) ([]interface{}, error) {
+func UnpackOutput(abi *abi.ABI, method string, receipt string) ([]interface{}, error) {
 	m, err := getMethod(abi, method)
 	if err != nil {
 		return nil, fmt.Errorf("get method %w", err)
@@ -179,7 +175,7 @@ func newElement(t abi.Type, val string) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		elem = uint64(num)
+		elem = num
 	case "uint128", "uint256", "int128", "int256":
 		var num *big.Int
 		var ok bool
@@ -215,7 +211,7 @@ func newElement(t abi.Type, val string) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		elem = int64(num)
+		elem = num
 	case "bool":
 		v, err := strconv.ParseBool(val)
 		if err != nil {
@@ -245,135 +241,135 @@ func newFixedBytes(size int, val string) interface{} {
 	switch size {
 	case 1:
 		var data [1]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 2:
 		var data [2]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 3:
 		var data [3]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 4:
 		var data [4]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 5:
 		var data [5]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 6:
 		var data [6]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 7:
 		var data [7]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 8:
 		var data [8]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 9:
 		var data [9]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 10:
 		var data [10]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 11:
 		var data [11]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 12:
 		var data [12]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 13:
 		var data [13]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 14:
 		var data [14]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 15:
 		var data [15]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 16:
 		var data [16]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 17:
 		var data [17]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 18:
 		var data [18]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 19:
 		var data [19]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 20:
 		var data [20]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 21:
 		var data [21]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 22:
 		var data [22]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 23:
 		var data [23]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 24:
 		var data [24]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 25:
 		var data [25]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 26:
 		var data [26]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 27:
 		var data [27]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 28:
 		var data [28]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 29:
 		var data [29]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 30:
 		var data [30]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 31:
 		var data [31]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 32:
 		var data [32]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	case 64:
 		var data [64]byte
-		copy(data[:], []byte(val))
+		copy(data[:], val)
 		return data
 	default:
 		return newFixedBytesWithReflect(size, val)

@@ -1,48 +1,59 @@
 package go_eth_client
 
 import (
-	"encoding/json"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
-// CompileResult is packaged compile contract result
 type CompileResult struct {
 	Abi   []string
 	Bin   []string
-	Types []string
+	Names []string
 }
 
-// EthError - ethereum error
-type EthError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+type TransactionOptions struct {
+	Gas      uint64
+	GasPrice *big.Int
+	Nonce    uint64
 }
 
-type ethRequest struct {
-	ID      int           `json:"id"`
-	JsonRPC string        `json:"jsonRPC"`
-	Method  string        `json:"method"`
-	Params  []interface{} `json:"params"`
+type Option func(opts *bind.TransactOpts)
+
+func WithNonce(nonce *big.Int) Option {
+	return func(opts *bind.TransactOpts) {
+		opts.Nonce = nonce
+	}
 }
 
-type ethResponse struct {
-	ID      int             `json:"id"`
-	JSONRPC string          `json:"jsonrpc"`
-	Result  json.RawMessage `json:"result"`
-	Error   *EthError       `json:"error"`
+func WithGasPrice(price *big.Int) Option {
+	return func(opts *bind.TransactOpts) {
+		opts.GasPrice = price
+	}
 }
 
-// Transaction - transaction object
-type Transaction struct {
-	Hash             string
-	Nonce            int
-	BlockHash        string
-	BlockNumber      *int
-	TransactionIndex *int
-	From             string
-	To               string
-	Value            *big.Int
-	Gas              int
-	GasPrice         big.Int
-	payload          string
+func WithGasLimit(limit uint64) Option {
+	return func(opts *bind.TransactOpts) {
+		opts.GasLimit = limit
+	}
+}
+
+type TransactionOption func(opts *TransactionOptions)
+
+func WithTxNonce(nonce uint64) TransactionOption {
+	return func(opts *TransactionOptions) {
+		opts.Nonce = nonce
+	}
+}
+
+func WithTxGasPrice(price *big.Int) TransactionOption {
+	return func(opts *TransactionOptions) {
+		opts.GasPrice = price
+	}
+}
+
+func WithTxGasLimit(limit uint64) TransactionOption {
+	return func(opts *TransactionOptions) {
+		opts.Gas = limit
+	}
 }
