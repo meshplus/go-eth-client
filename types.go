@@ -4,6 +4,9 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type CompileResult struct {
@@ -16,6 +19,21 @@ type TransactionOptions struct {
 	Gas      uint64
 	GasPrice *big.Int
 	Nonce    uint64
+}
+
+type CallArgs struct {
+	From                 *common.Address   `json:"from"`
+	To                   *common.Address   `json:"to"`
+	Gas                  *hexutil.Uint64   `json:"gas"`
+	GasPrice             *hexutil.Big      `json:"gasPrice"`
+	MaxFeePerGas         *hexutil.Big      `json:"maxFeePerGas"`
+	MaxPriorityFeePerGas *hexutil.Big      `json:"maxPriorityFeePerGas"`
+	Value                *hexutil.Big      `json:"value"`
+	Nonce                *hexutil.Uint64   `json:"nonce"`
+	Data                 *hexutil.Bytes    `json:"data"`
+	Input                *hexutil.Bytes    `json:"input"`
+	AccessList           *types.AccessList `json:"accessList"`
+	ChainID              *hexutil.Big      `json:"chainId,omitempty"`
 }
 
 type Option func(opts *bind.TransactOpts)

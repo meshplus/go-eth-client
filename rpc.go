@@ -48,6 +48,22 @@ func New(url string, pk *ecdsa.PrivateKey) (*EthRPC, error) {
 	}, nil
 }
 
+func NewWithOutPrivateKey(url string) (*EthRPC, error) {
+	client, err := ethclient.Dial(url)
+	if err != nil {
+		return nil, err
+	}
+	cid, err := client.ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return &EthRPC{
+		url:    url,
+		client: client,
+		cid:    cid,
+	}, nil
+}
+
 func (rpc *EthRPC) Compile(sourceFiles ...string) (*CompileResult, error) {
 	contracts, err := compiler.CompileSolidity("", sourceFiles...)
 	if err != nil {
@@ -245,10 +261,35 @@ func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *types.Transaction)
 	return receipt, nil
 }
 
+func (rpc *EthRPC) ETHSendRawTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error) {
+	err := rpc.client.SendTransaction(context.Background(), transaction)
+	hash := transaction.Hash()
+	if err != nil {
+		return nil, err
+	}
+	receipt, err := rpc.EthGetTransactionReceipt(hash)
+	if err != nil {
+		return nil, err
+	}
+	return receipt, nil
+}
+
+func (rpc *EthRPC) EthEstimateGas(args ethereum.CallMsg) (uint64, error) {
+	gas, err := rpc.client.EstimateGas(context.Background(), args)
+	if err != nil {
+		return 0, err
+	}
+	return gas, nil
+}
+
 func (rpc *EthRPC) EthCodeAt(account common.Address, blockNumber *big.Int) ([]byte, error) {
 	code, err := rpc.client.CodeAt(context.Background(), account, blockNumber)
 	if err != nil {
 		return nil, err
 	}
 	return code, nil
+}
+
+func (rpc *EthRPC) GetChainId() (*big.Int, error) {
+	return rpc.cid, nil
 }

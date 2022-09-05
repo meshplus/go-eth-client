@@ -3,6 +3,7 @@ package go_eth_client
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,5 +19,8 @@ type Client interface {
 	EthGetBalance(account common.Address, blockNumber *big.Int) (*big.Int, error)
 	EthSendTransaction(transaction *types.Transaction) (common.Hash, error)
 	EthSendTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error)
+	ETHSendRawTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error)
 	EthCodeAt(account common.Address, blockNumber *big.Int) ([]byte, error)
+	EthEstimateGas(args ethereum.CallMsg) (uint64, error)
+	GetChainId() (*big.Int, error)
 }
