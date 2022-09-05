@@ -261,17 +261,17 @@ func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *types.Transaction)
 	return receipt, nil
 }
 
-func (rpc *EthRPC) ETHSendRawTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error) {
+func (rpc *EthRPC) ETHSendRawTransaction(transaction *types.Transaction) (common.Hash, error) {
 	err := rpc.client.SendTransaction(context.Background(), transaction)
 	hash := transaction.Hash()
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
-	receipt, err := rpc.EthGetTransactionReceipt(hash)
-	if err != nil {
-		return nil, err
-	}
-	return receipt, nil
+	/*	receipt, err := rpc.EthGetTransactionReceipt(hash)
+		if err != nil {
+			return nil, err
+		}*/
+	return hash, nil
 }
 
 func (rpc *EthRPC) EthEstimateGas(args ethereum.CallMsg) (uint64, error) {
@@ -288,8 +288,4 @@ func (rpc *EthRPC) EthCodeAt(account common.Address, blockNumber *big.Int) ([]by
 		return nil, err
 	}
 	return code, nil
-}
-
-func (rpc *EthRPC) GetChainId() (*big.Int, error) {
-	return rpc.cid, nil
 }

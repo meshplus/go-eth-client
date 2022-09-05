@@ -19,8 +19,7 @@ type Client interface {
 	EthGetBalance(account common.Address, blockNumber *big.Int) (*big.Int, error)
 	EthSendTransaction(transaction *types.Transaction) (common.Hash, error)
 	EthSendTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error)
-	ETHSendRawTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error)
+	ETHSendRawTransaction(transaction *types.Transaction) (common.Hash, error)
 	EthCodeAt(account common.Address, blockNumber *big.Int) ([]byte, error)
 	EthEstimateGas(args ethereum.CallMsg) (uint64, error)
-	GetChainId() (*big.Int, error)
 }
