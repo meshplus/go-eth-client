@@ -84,7 +84,7 @@ func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Opt
 		opt(txOpts)
 	}
 	if txOpts.GasLimit == 0 {
-		txOpts.GasLimit = 100000000
+		txOpts.GasLimit = 100000
 	}
 
 	addresses := make([]string, 0)
