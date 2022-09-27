@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -27,6 +28,7 @@ var _ Client = (*EthRPC)(nil)
 type EthRPC struct {
 	url        string
 	client     *ethclient.Client
+	bxhLock    sync.Mutex
 	privateKey *ecdsa.PrivateKey
 	cid        *big.Int
 }
@@ -137,6 +139,8 @@ func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Opt
 }
 
 func (rpc *EthRPC) Invoke(contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
+	rpc.bxhLock.Lock()
+	defer rpc.bxhLock.Unlock()
 	from := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
 	to := common.HexToAddress(address)
 	packed, err := contractAbi.Pack(method, args...)
@@ -206,6 +210,8 @@ func (rpc *EthRPC) EthGasPrice() (*big.Int, error) {
 }
 
 func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, error) {
+	rpc.bxhLock.Lock()
+	defer rpc.bxhLock.Unlock()
 	var receipt *types.Receipt
 	var err error
 	err = retry.Retry(func(attempt uint) error {
@@ -222,6 +228,8 @@ func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, e
 }
 
 func (rpc *EthRPC) EthGetTransactionCount(account common.Address, blockNumber *big.Int) (uint64, error) {
+	rpc.bxhLock.Lock()
+	defer rpc.bxhLock.Unlock()
 	nonce, err := rpc.client.NonceAt(context.Background(), account, blockNumber)
 	if err != nil {
 		return 0, err
@@ -230,6 +238,8 @@ func (rpc *EthRPC) EthGetTransactionCount(account common.Address, blockNumber *b
 }
 
 func (rpc *EthRPC) EthGetBalance(account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	rpc.bxhLock.Lock()
+	defer rpc.bxhLock.Unlock()
 	balance, err := rpc.client.BalanceAt(context.Background(), account, blockNumber)
 	if err != nil {
 		return nil, err
@@ -262,6 +272,8 @@ func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *types.Transaction)
 }
 
 func (rpc *EthRPC) ETHSendRawTransaction(transaction *types.Transaction) (common.Hash, error) {
+	rpc.bxhLock.Lock()
+	defer rpc.bxhLock.Unlock()
 	err := rpc.client.SendTransaction(context.Background(), transaction)
 	hash := transaction.Hash()
 	if err != nil {
@@ -275,6 +287,8 @@ func (rpc *EthRPC) ETHSendRawTransaction(transaction *types.Transaction) (common
 }
 
 func (rpc *EthRPC) EthEstimateGas(args ethereum.CallMsg) (uint64, error) {
+	rpc.bxhLock.Lock()
+	defer rpc.bxhLock.Unlock()
 	gas, err := rpc.client.EstimateGas(context.Background(), args)
 	if err != nil {
 		return 0, err
