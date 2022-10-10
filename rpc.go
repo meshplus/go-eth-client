@@ -97,23 +97,9 @@ func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Opt
 			return nil, err
 		}
 		code := strings.TrimPrefix(strings.TrimSpace(bin), "0x")
-		address, tx, _, err := bind.DeployContract(txOpts, parsed, common.FromHex(code), rpc.client, args...)
+		address, _, _, err := bind.DeployContract(txOpts, parsed, common.FromHex(code), rpc.client, args...)
 		if err != nil {
 			return nil, err
-		}
-		// try three times
-		var receipt *types.Receipt
-		if err := retry.Retry(func(attempt uint) error {
-			receipt, err = rpc.client.TransactionReceipt(context.Background(), tx.Hash())
-			if err != nil {
-				return err
-			}
-			return nil
-		}, strategy.Wait(1*time.Second), strategy.Limit(3)); err != nil {
-			return nil, err
-		}
-		if receipt.Status == types.ReceiptStatusFailed {
-			return nil, fmt.Errorf("deploy contract failed, tx hash is: %s", tx.Hash())
 		}
 		addresses = append(addresses, address.String())
 	}
@@ -170,14 +156,11 @@ func (rpc *EthRPC) Invoke(contractAbi *abi.ABI, address string, method string, a
 			txOpts.GasPrice = price
 		}
 		tx := NewTransaction(txOpts.Nonce, to, txOpts.Gas, txOpts.GasPrice, packed, nil)
-		receipt, err := rpc.EthSendTransactionWithReceipt(tx)
+		hash, err := rpc.EthSendTransaction(tx)
 		if err != nil {
 			return nil, err
 		}
-		if receipt.Status == types.ReceiptStatusFailed {
-			return nil, fmt.Errorf("invoke error: %v", receipt.TxHash.String())
-		}
-		return []interface{}{receipt.TxHash.String()}, nil
+		return []interface{}{hash.String()}, nil
 	}
 }
 
