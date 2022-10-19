@@ -25,13 +25,11 @@ import (
 var _ Client = (*EthRPC)(nil)
 
 type EthRPC struct {
-	url        string
-	client     *ethclient.Client
-	privateKey *ecdsa.PrivateKey
-	cid        *big.Int
+	client *ethclient.Client
+	cid    *big.Int
 }
 
-func New(url string, pk *ecdsa.PrivateKey) (*EthRPC, error) {
+func New(url string) (*EthRPC, error) {
 	client, err := ethclient.Dial(url)
 	if err != nil {
 		return nil, err
@@ -41,10 +39,8 @@ func New(url string, pk *ecdsa.PrivateKey) (*EthRPC, error) {
 		return nil, err
 	}
 	return &EthRPC{
-		url:        url,
-		client:     client,
-		privateKey: pk,
-		cid:        cid,
+		client: client,
+		cid:    cid,
 	}, nil
 }
 
@@ -70,12 +66,12 @@ func (rpc *EthRPC) Compile(sourceFiles ...string) (*CompileResult, error) {
 	}, nil
 }
 
-func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Option) ([]string, error) {
+func (rpc *EthRPC) Deploy(privateKey *ecdsa.PrivateKey, result *CompileResult, args []interface{}, opts ...Option) ([]string, error) {
 	if len(result.Abi) == 0 || len(result.Bin) == 0 || len(result.Names) == 0 {
 		return nil, fmt.Errorf("empty contract")
 	}
 
-	txOpts, err := bind.NewKeyedTransactorWithChainID(rpc.privateKey, rpc.cid)
+	txOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, rpc.cid)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +102,8 @@ func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Opt
 	return addresses, nil
 }
 
-func (rpc *EthRPC) Invoke(contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
-	from := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
+func (rpc *EthRPC) Invoke(privateKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
+	from := crypto.PubkeyToAddress(privateKey.PublicKey)
 	to := common.HexToAddress(address)
 	packed, err := contractAbi.Pack(method, args...)
 	if err != nil {
@@ -139,7 +135,7 @@ func (rpc *EthRPC) Invoke(contractAbi *abi.ABI, address string, method string, a
 			opt(txOpts)
 		}
 		if txOpts.Nonce == 0 {
-			nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(rpc.privateKey.PublicKey), nil)
+			nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(privateKey.PublicKey), nil)
 			if err != nil {
 				return nil, err
 			}
@@ -156,7 +152,7 @@ func (rpc *EthRPC) Invoke(contractAbi *abi.ABI, address string, method string, a
 			txOpts.GasPrice = price
 		}
 		tx := NewTransaction(txOpts.Nonce, to, txOpts.Gas, txOpts.GasPrice, packed, nil)
-		hash, err := rpc.EthSendTransaction(tx)
+		hash, err := rpc.EthSendTransaction(tx, privateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -204,8 +200,8 @@ func (rpc *EthRPC) EthGetBalance(account common.Address, blockNumber *big.Int) (
 	return balance, nil
 }
 
-func (rpc *EthRPC) EthSendTransaction(transaction *types.Transaction) (common.Hash, error) {
-	signTx, err := types.SignTx(transaction, types.NewEIP155Signer(rpc.cid), rpc.privateKey)
+func (rpc *EthRPC) EthSendTransaction(transaction *types.Transaction, privateKey *ecdsa.PrivateKey) (common.Hash, error) {
+	signTx, err := types.SignTx(transaction, types.NewEIP155Signer(rpc.cid), privateKey)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -216,8 +212,8 @@ func (rpc *EthRPC) EthSendTransaction(transaction *types.Transaction) (common.Ha
 	return signTx.Hash(), nil
 }
 
-func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error) {
-	hash, err := rpc.EthSendTransaction(transaction)
+func (rpc *EthRPC) EthSendTransactionWithReceipt(transaction *types.Transaction, privateKey *ecdsa.PrivateKey) (*types.Receipt, error) {
+	hash, err := rpc.EthSendTransaction(transaction, privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -234,4 +230,8 @@ func (rpc *EthRPC) EthCodeAt(account common.Address, blockNumber *big.Int) ([]by
 		return nil, err
 	}
 	return code, nil
+}
+
+func (rpc *EthRPC) Close() {
+	rpc.client.Close()
 }
