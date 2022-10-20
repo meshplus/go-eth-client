@@ -37,6 +37,7 @@ func TestDeployByCode(t *testing.T) {
 	assert.Nil(t, err)
 	abi, err := abi.JSON(bytes.NewReader(file))
 	require.Nil(t, err)
+	abi.Methods[0].Inputs
 	code, err := ioutil.ReadFile("testdata/data.bin")
 	require.Nil(t, err)
 	address, err := client.DeployByCode(abi, string(code), nil)
