@@ -70,6 +70,41 @@ func (rpc *EthRPC) Compile(sourceFiles ...string) (*CompileResult, error) {
 	}, nil
 }
 
+func (rpc *EthRPC) DeployByCode(abi abi.ABI, code string, args []interface{}, opts ...Option) (string, error) {
+	txOpts, err := bind.NewKeyedTransactorWithChainID(rpc.privateKey, rpc.cid)
+	if err != nil {
+		return "", err
+	}
+	//set transaction options
+	for _, opt := range opts {
+		opt(txOpts)
+	}
+	if txOpts.GasLimit == 0 {
+		txOpts.GasLimit = 100000000
+	}
+
+	address, tx, _, err := bind.DeployContract(txOpts, abi, common.FromHex(code), rpc.client, args...)
+	if err != nil {
+		return "", err
+	}
+	// try three times
+	var receipt *types.Receipt
+	if err := retry.Retry(func(attempt uint) error {
+		receipt, err = rpc.client.TransactionReceipt(context.Background(), tx.Hash())
+		if err != nil {
+			return err
+		}
+		return nil
+	}, strategy.Wait(2*time.Second), strategy.Limit(5)); err != nil {
+		return "", err
+	}
+	fmt.Println("contract addr:", receipt.ContractAddress.String())
+	if receipt.Status == types.ReceiptStatusFailed {
+		return "", fmt.Errorf("deploy contract failed, tx hash is: %s", tx.Hash())
+	}
+	return address.String(), nil
+}
+
 func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Option) ([]string, error) {
 	if len(result.Abi) == 0 || len(result.Bin) == 0 || len(result.Names) == 0 {
 		return nil, fmt.Errorf("empty contract")
