@@ -139,8 +139,6 @@ func (rpc *EthRPC) Deploy(result *CompileResult, args []interface{}, opts ...Opt
 }
 
 func (rpc *EthRPC) Invoke(contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
-	rpc.bxhLock.Lock()
-	defer rpc.bxhLock.Unlock()
 	from := crypto.PubkeyToAddress(rpc.privateKey.PublicKey)
 	to := common.HexToAddress(address)
 	packed, err := contractAbi.Pack(method, args...)
