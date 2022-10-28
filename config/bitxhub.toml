@@ -1,0 +1,10 @@
+# bitxhub configuration file
+[json_rpc]
+#http_addrs = ["http://localhost:8881"]
+http_addrs = ["http://localhost:8881", "http://localhost:8882", "http://localhost:8883", "http://localhost:8884"]
+
+grpc_addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+
+
+
+
