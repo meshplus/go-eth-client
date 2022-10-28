@@ -1,6 +1,7 @@
 package go_eth_client
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -11,12 +12,15 @@ import (
 type Client interface {
 	Compile(sourceFiles ...string) (*CompileResult, error)
 	Deploy(result *CompileResult, args []interface{}, opts ...Option) ([]string, error)
-	Invoke(contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error)
+	DeployByCode(abi abi.ABI, code string, args []interface{}, opts ...Option) (string, uint64, error)
+	Invoke(contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...Option) ([]interface{}, error)
 	EthGasPrice() (*big.Int, error)
 	EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, error)
 	EthGetTransactionCount(account common.Address, blockNumber *big.Int) (uint64, error)
 	EthGetBalance(account common.Address, blockNumber *big.Int) (*big.Int, error)
-	EthSendTransaction(transaction *types.Transaction) (common.Hash, error)
-	EthSendTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error)
+	EthSendTransaction(transaction *types.Transaction, inputKey *ecdsa.PrivateKey) (common.Hash, error)
+	EthSendTransactionWithReceipt(transaction *types.Transaction, inputKey *ecdsa.PrivateKey) (*types.Receipt, error)
 	EthCodeAt(account common.Address, blockNumber *big.Int) ([]byte, error)
+	EthGetBlockByNumber(blockNumber *big.Int, excludingTxs bool) (*types.Block, error)
+	EthGetChainId() *big.Int
 }
