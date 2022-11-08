@@ -44,7 +44,7 @@ func TestDeploy(t *testing.T) {
 func TestDeployNft(t *testing.T) {
 	account, err := LoadAccount("testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881", account.PrivateKey)
+	client, err := New("http://172.16.13.130:8881", account.PrivateKey)
 	require.Nil(t, err)
 	result, err := client.Compile("testdata/pandaNft.sol")
 	require.Nil(t, err)
@@ -107,7 +107,7 @@ func TestDeployNft(t *testing.T) {
 func TestDeployErc20(t *testing.T) {
 	account, err := LoadAccount("testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881", account.PrivateKey)
+	client, err := New("http://172.16.13.130:8881", account.PrivateKey)
 	require.Nil(t, err)
 	result, err := client.Compile("testdata/contracts/token/ERC20/ERC20PresetMinterPauser.sol")
 	require.Nil(t, err)
@@ -148,7 +148,7 @@ func TestErc20Get(t *testing.T) {
 
 	account, err := LoadAccount("testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://127.0.0.1:8881", account.PrivateKey)
+	client, err := New("http://172.16.13.130:8881", account.PrivateKey)
 	require.Nil(t, err)
 	result, err := client.Compile("testdata/contracts/token/ERC20/ERC20PresetMinterPauser.sol")
 	require.Nil(t, err)
@@ -173,11 +173,12 @@ func TestErc20Get(t *testing.T) {
 	}
 	addresses, err := client.Deploy(&compileResult, parm)
 
+	//addresses := "0x668a209Dc6562707469374B8235e37b8eC25db08"
 	fmt.Println(addresses)
 	require.Nil(t, err)
 	contractAbi, err := abi.JSON(bytes.NewReader([]byte(compileResult.Abi[0])))
 
-	args, err := Encode(&contractAbi, "mint", "0x20f7fac801c5fc3f7e20cfbadaa1cdb33d818fa3", "100000000000000000000")
+	args, err := Encode(&contractAbi, "mint", "0x20f7fac801c5fc3f7e20cfbadaa1cdb33d818fa3", "1000000000000000000000000000")
 	require.Nil(t, err)
 	_, err = client.Invoke(&contractAbi, addresses[0], "mint", args)
 	require.Nil(t, err)
@@ -188,16 +189,6 @@ func TestErc20Get(t *testing.T) {
 	res, err := client.Invoke(&contractAbi, addresses[0], "balanceOf", args)
 	fmt.Println(res)
 
-	args, err = Encode(&contractAbi, "transfer", "0xc7F999b83Af6DF9e67d0a37Ee7e900bF38b3D013", "1000000000000000000")
-	res, err = client.Invoke(&contractAbi, addresses[0], "transfer", args)
-	require.Nil(t, err)
-
-	args, err = Encode(&contractAbi, "balanceOf", "0xc7F999b83Af6DF9e67d0a37Ee7e900bF38b3D013")
-	require.Nil(t, err)
-	res, err = client.Invoke(&contractAbi, addresses[0], "balanceOf", args)
-	fmt.Println(res)
-
-	fmt.Println(addresses[0])
 }
 
 func TestSign(t *testing.T) {

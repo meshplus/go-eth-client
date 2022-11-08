@@ -29,7 +29,7 @@ contract PandaNft is ERC721{
     }
 
     function mint(address to, uint tokenId) external {
-        //require(msg.sender==owner,"only contract owner can mint token");
+        require(msg.sender==owner,"only contract owner can mint token");
         require(tokenId >= 0 && tokenId < MAX_APES, "tokenId out of range");
         _mint(to, tokenId);
         count++;
