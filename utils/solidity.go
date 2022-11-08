@@ -1,4 +1,4 @@
-package go_eth_client
+package utils
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func Encode(Abi *abi.ABI, funcName string, args ...interface{}) ([]interface{}, error) {
+func Decode(Abi *abi.ABI, funcName string, args ...interface{}) ([]interface{}, error) {
 	var method abi.Method
 	var err error
 
