@@ -25,7 +25,7 @@ type Client interface {
 	EthSendTransactionWithReceipt(privKey *ecdsa.PrivateKey, transaction *types.Transaction) (*types.Receipt, error)
 	EthSendRawTransactionWithReceipt(transaction *types.Transaction) (*types.Receipt, error)
 	EthGetCode(account common.Address, blockNumber *big.Int) (string, error)
-	EthGetBlockByNumber(blockNumber *big.Int, excludingTxs bool) (*types.Block, error)
+	EthGetBlockByNumber(blockNumber *big.Int, fullTx bool) (*types.Block, error)
 	EthGetChainId() *big.Int
 	EthGetBlockTransactionCountByHash(hash common.Hash) (uint64, error)
 	EthGetBlockTransactionCountByNumber(blockNumber *big.Int) (uint64, error)

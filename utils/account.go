@@ -1,4 +1,4 @@
-package common
+package utils
 
 import (
 	"crypto/ecdsa"
@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -25,11 +26,11 @@ func NewAccount(accountPath, password, fileName string) (*ecdsa.PrivateKey, stri
 }
 
 func KeystoreToPrivateKey(privKeyFile, password string) (*ecdsa.PrivateKey, string, error) {
-	keyjson, err := ioutil.ReadFile(privKeyFile)
+	keyJson, err := ioutil.ReadFile(privKeyFile)
 	if err != nil {
 		fmt.Println("read keyjson file failed：", err)
 	}
-	unlockedKey, err := keystore.DecryptKey(keyjson, password)
+	unlockedKey, err := keystore.DecryptKey(keyJson, password)
 	if err != nil {
 
 		return nil, "", err
@@ -48,4 +49,23 @@ func PrivateKeyToPublic(privateKey *ecdsa.PrivateKey) (*ecdsa.PublicKey, string,
 	}
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 	return publicKeyECDSA, address, nil
+}
+
+func LoadAccount(configPath string) (*keystore.Key, error) {
+	keyPath := filepath.Join(configPath, "account.key")
+	keyByte, err := ioutil.ReadFile(keyPath)
+	if err != nil {
+		return nil, err
+	}
+	psdPath := filepath.Join(configPath, "password")
+	psd, err := ioutil.ReadFile(psdPath)
+	if err != nil {
+		return nil, err
+	}
+	password := strings.TrimSpace(string(psd))
+	unlockedKey, err := keystore.DecryptKey(keyByte, password)
+	if err != nil {
+		return nil, err
+	}
+	return unlockedKey, nil
 }

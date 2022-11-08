@@ -42,7 +42,7 @@ jobs:
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           git clone https://github.com/meshplus/bitxhub.git
-          cd bitxhub && git checkout feat/refactor_grpc_getBlock
+          cd bitxhub && git checkout master
           make prepare
           cd scripts && nohup bash solo.sh &
           sleep 180

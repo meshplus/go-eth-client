@@ -26,8 +26,7 @@ import (
 var _ Client = (*EthRPC)(nil)
 
 const (
-	ErrorNotFind = "not found in DB"
-	waitReceipt  = 300 * time.Millisecond
+	waitReceipt = 300 * time.Millisecond
 )
 
 type EthRPC struct {
@@ -266,7 +265,7 @@ func (rpc *EthRPC) EthCall(contractAbi *abi.ABI, address string, method string, 
 		return nil, fmt.Errorf("output is empty")
 	}
 	// unpack result for display
-	invokeRes, err = UnpackOutput(contractAbi, method, string(output))
+	invokeRes, err = utils.UnpackOutput(contractAbi, method, string(output))
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +299,7 @@ func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, addre
 			return nil, fmt.Errorf("output is empty")
 		}
 		// unpack result for display
-		invokeRes, err = UnpackOutput(contractAbi, method, string(output))
+		invokeRes, err = utils.UnpackOutput(contractAbi, method, string(output))
 		if err != nil {
 			return nil, err
 		}
@@ -349,10 +348,6 @@ func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, e
 	err = retry.Retry(func(attempt uint) error {
 		receipt, err = rpc.client.TransactionReceipt(context.Background(), hash)
 		if err != nil {
-			if !strings.Contains(err.Error(), ErrorNotFind) {
-				otherError = err
-				return nil
-			}
 			return err
 		}
 		return nil
@@ -374,17 +369,17 @@ func (rpc *EthRPC) EthGetTransactionCount(account common.Address, blockNumber *b
 	return nonce, nil
 }
 
-func (rpc *EthRPC) EthGetBlockByNumber(blockNumber *big.Int, excludingTxs bool) (*types.Block, error) {
+func (rpc *EthRPC) EthGetBlockByNumber(blockNumber *big.Int, fullTx bool) (*types.Block, error) {
 	var (
 		err   error
 		block *types.Block
 	)
-	if excludingTxs {
-		blockHeder, err := rpc.client.HeaderByNumber(context.Background(), blockNumber)
+	if !fullTx {
+		blockHeader, err := rpc.client.HeaderByNumber(context.Background(), blockNumber)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewBlockWithHeader(blockHeder), nil
+		return types.NewBlockWithHeader(blockHeader), nil
 	}
 	block, err = rpc.client.BlockByNumber(context.Background(), blockNumber)
 	if err != nil {
