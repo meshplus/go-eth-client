@@ -9,10 +9,24 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func NewAccount(accountPath, password, fileName string) (*ecdsa.PrivateKey, string, error) {
+func NewAccount() (*ecdsa.PrivateKey, string, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, "", err
+	}
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+	return privateKey, address.String(), nil
+}
+
+func GetPrivateKeyAddr(privateKey *ecdsa.PrivateKey) common.Address {
+	return crypto.PubkeyToAddress(privateKey.PublicKey)
+}
+
+func GenAndStoreAccount(accountPath, password, fileName string) (*ecdsa.PrivateKey, string, error) {
 	account, err := keystore.StoreKey(accountPath, password, keystore.LightScryptN, keystore.LightScryptP)
 	if err != nil {
 		return nil, "", err
