@@ -18,21 +18,21 @@ type TransactionOptions struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-type Option func(opts *TransactionOptions)
+type TransactionOption func(opts *TransactionOptions)
 
-func WithNonce(nonce uint64) Option {
+func WithNonce(nonce uint64) TransactionOption {
 	return func(opts *TransactionOptions) {
 		opts.Nonce = nonce
 	}
 }
 
-func WithGasPrice(price *big.Int) Option {
+func WithGasPrice(price *big.Int) TransactionOption {
 	return func(opts *TransactionOptions) {
 		opts.GasPrice = price
 	}
 }
 
-func WithGasLimit(limit uint64) Option {
+func WithGasLimit(limit uint64) TransactionOption {
 	return func(opts *TransactionOptions) {
 		opts.GasLimit = limit
 	}

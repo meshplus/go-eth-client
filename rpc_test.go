@@ -22,7 +22,14 @@ import (
 )
 
 func TestCompile(t *testing.T) {
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
@@ -32,7 +39,14 @@ func TestCompile(t *testing.T) {
 func TestDeployByCode(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	file, err := ioutil.ReadFile("./testdata/data.abi")
 	assert.Nil(t, err)
@@ -51,7 +65,14 @@ func TestDeployByCode(t *testing.T) {
 func TestDeploy(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
@@ -61,10 +82,17 @@ func TestDeploy(t *testing.T) {
 	fmt.Println(addresses[0])
 }
 
-func TestEthRPC_EthCall(t *testing.T) {
+func TestEthCall(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
@@ -91,7 +119,14 @@ func TestEthRPC_EthCall(t *testing.T) {
 func TestInvokeEthContract(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
@@ -116,7 +151,14 @@ func TestInvokeEthContract(t *testing.T) {
 }
 
 func TestGetLatestBlock(t *testing.T) {
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	block, err := client.EthGetBlockByNumber(nil, false)
 	require.Nil(t, err)
@@ -153,7 +195,14 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestEthGasPrice(t *testing.T) {
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
 	require.Nil(t, err)
@@ -163,7 +212,14 @@ func TestEthGasPrice(t *testing.T) {
 func TestEthEstimateGas(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
 	require.Nil(t, err)
@@ -178,11 +234,18 @@ func TestEthEstimateGas(t *testing.T) {
 	require.Equal(t, uint64(21000), gas)
 }
 
-//TODO
+// TODO
 func TestEthGetTransactionByHash(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
@@ -199,11 +262,18 @@ func TestEthGetTransactionByHash(t *testing.T) {
 	reflect.DeepEqual(tx, actualTx)
 }
 
-//TODO
+// TODO
 func TestEthGetTransactionByBlockHashAndIndex(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
@@ -223,7 +293,14 @@ func TestEthGetTransactionByBlockHashAndIndex(t *testing.T) {
 func TestEthGetTransactionByBlockNumberAndIndex(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
@@ -240,7 +317,14 @@ func TestEthGetTransactionByBlockNumberAndIndex(t *testing.T) {
 }
 
 func TestEthGetBlockTransactionCountByHash(t *testing.T) {
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	block, err := client.EthGetBlockByNumber(nil, true)
 	require.Nil(t, err)
@@ -252,7 +336,14 @@ func TestEthGetBlockTransactionCountByHash(t *testing.T) {
 func TestEthGetTransactionReceipt(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
@@ -271,7 +362,14 @@ func TestEthGetTransactionReceipt(t *testing.T) {
 func TestEthGetTransactionCount(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
@@ -281,7 +379,14 @@ func TestEthGetTransactionCount(t *testing.T) {
 func TestEthGetBalance(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	balance, err := client.EthGetBalance(account.Address, nil)
 	require.Nil(t, err)
@@ -291,7 +396,14 @@ func TestEthGetBalance(t *testing.T) {
 func TestEthSendTransactionWithReceipt(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
@@ -308,7 +420,14 @@ func TestEthSendTransactionWithReceipt(t *testing.T) {
 func TestEthCodeAt(t *testing.T) {
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
@@ -405,7 +524,14 @@ func prepareContract(t *testing.T, cli Client, privateKey *ecdsa.PrivateKey, con
 }
 
 func TestInvokeTupleContract(t *testing.T) {
-	cli, err := New("http://localhost:8881")
+	cli, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
 	require.Nil(t, err)
 	account, err := utils.LoadAccount("./testdata/config")
 	require.Nil(t, err)
@@ -459,4 +585,32 @@ func TestInvokeTupleContract(t *testing.T) {
 	assert.Nil(t, err)
 	_, err = cli.Invoke(account.PrivateKey, &contractAbi, string(code), "publish", args)
 	assert.Nil(t, err)
+}
+
+func TestEthSendRawTransaction(t *testing.T) {
+	account, err := utils.LoadAccount("./testdata/config")
+	require.Nil(t, err)
+	client, err := New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
+	require.Nil(t, err)
+	nonce, err := client.EthGetTransactionCount(account.Address, nil)
+	require.Nil(t, err)
+	price, err := client.EthGasPrice()
+	require.Nil(t, err)
+	pk, err := crypto.GenerateKey()
+	require.Nil(t, err)
+	tx := utils.NewTransaction(nonce, crypto.PubkeyToAddress(pk.PublicKey), uint64(10000000), price, nil, big.NewInt(1))
+	signTx, err := types.SignTx(tx, types.NewEIP155Signer(client.EthGetChainId()), account.PrivateKey)
+	require.Nil(t, err)
+	txHash, err := client.EthSendRawTransaction(signTx)
+	require.Nil(t, err)
+	receipt, err := client.EthGetTransactionReceipt(txHash)
+	require.Nil(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
 }
