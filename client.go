@@ -12,9 +12,9 @@ import (
 
 type Client interface {
 	Compile(sourceFiles ...string) (*CompileResult, error)
-	Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args []interface{}, opts ...Option) ([]string, error)
-	DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code string, args []interface{}, opts ...Option) (string, uint64, error)
-	Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...Option) ([]interface{}, error)
+	Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args []interface{}, opts ...TransactionOption) ([]string, error)
+	DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code string, args []interface{}, opts ...TransactionOption) (string, uint64, error)
+	Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error)
 	EthCall(contractAbi *abi.ABI, address string, method string, args []interface{}) ([]interface{}, error)
 	EthGasPrice() (*big.Int, error)
 	EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, error)
@@ -33,4 +33,5 @@ type Client interface {
 	EthGetTransactionByBlockHashAndIndex(blockHash common.Hash, index int) (*types.Transaction, error)
 	EthGetTransactionByBlockNumberAndIndex(blockNumber *big.Int, index int) (*types.Transaction, error)
 	EthEstimateGas(msg ethereum.CallMsg) (uint64, error)
+	Stop()
 }
