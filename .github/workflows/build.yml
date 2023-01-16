@@ -44,6 +44,7 @@ jobs:
           git clone https://github.com/meshplus/bitxhub.git
           cd bitxhub && git checkout master
           make prepare
+          make install
           cd scripts && nohup bash cluster.sh &
           sleep 180
           cd scripts && bitxhub --repo build/node1 client transfer --key build/node1/key.json --to 0x450c8a57bae0aa50fa5122c84419d2b2924f205d --amount 10000000000000000000000000000
