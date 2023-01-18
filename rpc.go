@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -22,25 +21,31 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/go-eth-client/utils"
 )
 
 var _ Client = (*EthRPC)(nil)
 
 const (
-	poolSize        = 6             // 连接池默认大小
-	poolInit        = 4             // 连接池默认初始连接数
-	poolIdleTimeout = 1 * time.Hour // 连接池中连接的默认闲置时间阈值
+	defaultPoolSize        = 6               // 连接池默认大小
+	defaultPoolInit        = 4               // 连接池默认初始连接数
+	defaultPoolIdleTimeout = 1 * time.Hour   // 连接池中连接的默认闲置时间阈值
+	defaultCallTimeout     = 6 * time.Second // 默认请求超时时间
 
 	waitReceipt = 300 * time.Millisecond
 )
 
 type EthRPC struct {
-	urls       []string          // bitxhub各节点的URL
-	pool       *Pool             // 客户端连接池
-	poolSize   int               // 连接池大小
-	privateKey *ecdsa.PrivateKey // 用于交易签名的默认私钥
-	cid        *big.Int          // ChainID
+	urls            []string          // bitxhub各节点的URL
+	privateKey      *ecdsa.PrivateKey // 用于交易签名的默认私钥
+	cid             *big.Int          // ChainID
+	pool            *Pool             // 客户端连接池
+	poolSize        int               // 连接池大小
+	poolInit        int               // 连接池初始连接数
+	poolIdleTimeout time.Duration     // 连接池中连接的闲置时间阈值
+	callTimeout     time.Duration     // 请求的超时时间（包括等待连接和json-rpc请求的超时时间总和）
+	logger          Logger
 }
 
 type Option func(*EthRPC)
@@ -51,15 +56,39 @@ func WithUrls(urls []string) Option {
 	}
 }
 
+func WithPriKey(pk *ecdsa.PrivateKey) Option {
+	return func(config *EthRPC) {
+		config.privateKey = pk
+	}
+}
+
 func WithPoolSize(poolSize int) Option {
 	return func(config *EthRPC) {
 		config.poolSize = poolSize
 	}
 }
 
-func WithPriKey(pk *ecdsa.PrivateKey) Option {
+func WithPoolInit(poolInit int) Option {
 	return func(config *EthRPC) {
-		config.privateKey = pk
+		config.poolInit = poolInit
+	}
+}
+
+func WithPoolIdleTimeout(t time.Duration) Option {
+	return func(config *EthRPC) {
+		config.poolIdleTimeout = t
+	}
+}
+
+func WithCallTimeout(t time.Duration) Option {
+	return func(config *EthRPC) {
+		config.callTimeout = t
+	}
+}
+
+func WithLogger(logger Logger) Option {
+	return func(config *EthRPC) {
+		config.logger = logger
 	}
 }
 
@@ -70,26 +99,40 @@ func New(opts ...Option) (*EthRPC, error) {
 		opt(rpc)
 	}
 
-	// check
+	// check and set config
 	if len(rpc.urls) == 0 {
 		return nil, fmt.Errorf("bitxhub urls cant not be 0")
 	}
 	if rpc.poolSize <= 0 {
-		rpc.poolSize = poolSize
+		rpc.poolSize = defaultPoolSize
+	}
+	if rpc.poolInit <= 0 {
+		rpc.poolInit = defaultPoolInit
+	}
+	if rpc.poolIdleTimeout <= 0 {
+		rpc.poolIdleTimeout = defaultPoolIdleTimeout
+	}
+	if rpc.callTimeout <= 0 {
+		rpc.callTimeout = defaultCallTimeout
+	}
+	if rpc.logger == nil {
+		rpc.logger = log.NewWithModule("go-eth-client")
 	}
 
 	// generate other config
 	var err error
-	rpc.pool, err = NewPool(rpc.newClient, poolInit, rpc.poolSize, poolIdleTimeout)
+	rpc.pool, err = NewPool(rpc.newClient, rpc.poolInit, rpc.poolSize, rpc.poolIdleTimeout)
 	if err != nil {
 		return nil, err
 	}
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
-	rpc.cid, err = client.conn.ChainID(context.Background())
+	rpc.cid, err = client.conn.ChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -103,10 +146,12 @@ func (rpc *EthRPC) newClient() (*ethclient.Client, error) {
 		randIndex := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(rpc.urls))
 		client, err = ethclient.Dial(rpc.urls[randIndex])
 		if err != nil {
+			rpc.logger.Errorf("Dial url %s failed", rpc.urls[randIndex])
 			return fmt.Errorf("dial url %s failed", rpc.urls[randIndex])
 		}
+		rpc.logger.Infof("Establish connection with %s successfully", rpc.urls[randIndex])
 		return nil
-	}, strategy.Wait(500*time.Millisecond), strategy.Limit(uint(5*len(rpc.urls)))); err != nil {
+	}, strategy.Wait(3*time.Second), strategy.Limit(uint(2*len(rpc.urls)))); err != nil {
 		return nil, err
 	}
 	return client, nil
@@ -114,17 +159,19 @@ func (rpc *EthRPC) newClient() (*ethclient.Client, error) {
 
 func (rpc *EthRPC) putClient(client *clientConn) {
 	if err := rpc.pool.Put(client); err != nil {
-		log.Printf("put into pool err: %s", err)
+		rpc.logger.Errorf("Put into pool err: %s", err)
 	}
 }
 
 func (rpc *EthRPC) EthEstimateGas(msg ethereum.CallMsg) (uint64, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer rpc.putClient(client)
-	estimateGas, err := client.conn.EstimateGas(context.Background(), msg)
+	estimateGas, err := client.conn.EstimateGas(ctx, msg)
 	if err != nil {
 		return 0, err
 	}
@@ -132,12 +179,14 @@ func (rpc *EthRPC) EthEstimateGas(msg ethereum.CallMsg) (uint64, error) {
 }
 
 func (rpc *EthRPC) EthGetTransactionByHash(txHash common.Hash) (*types.Transaction, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
-	tx, _, err := client.conn.TransactionByHash(context.Background(), txHash)
+	tx, _, err := client.conn.TransactionByHash(ctx, txHash)
 	if err != nil {
 		return nil, err
 	}
@@ -145,12 +194,14 @@ func (rpc *EthRPC) EthGetTransactionByHash(txHash common.Hash) (*types.Transacti
 }
 
 func (rpc *EthRPC) EthGetTransactionByBlockHashAndIndex(blockHash common.Hash, index int) (*types.Transaction, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
-	tx, err := client.conn.TransactionInBlock(context.Background(), blockHash, uint(index))
+	tx, err := client.conn.TransactionInBlock(ctx, blockHash, uint(index))
 	if err != nil {
 		return nil, err
 	}
@@ -158,12 +209,14 @@ func (rpc *EthRPC) EthGetTransactionByBlockHashAndIndex(blockHash common.Hash, i
 }
 
 func (rpc *EthRPC) EthGetTransactionByBlockNumberAndIndex(blockNumber *big.Int, index int) (*types.Transaction, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
-	block, err := client.conn.BlockByNumber(context.Background(), blockNumber)
+	block, err := client.conn.BlockByNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -172,12 +225,14 @@ func (rpc *EthRPC) EthGetTransactionByBlockNumberAndIndex(blockNumber *big.Int, 
 }
 
 func (rpc *EthRPC) EthGetBlockTransactionCountByHash(blockHash common.Hash) (uint64, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer rpc.putClient(client)
-	num, err := client.conn.TransactionCount(context.Background(), blockHash)
+	num, err := client.conn.TransactionCount(ctx, blockHash)
 	if err != nil {
 		return 0, err
 	}
@@ -185,12 +240,14 @@ func (rpc *EthRPC) EthGetBlockTransactionCountByHash(blockHash common.Hash) (uin
 }
 
 func (rpc *EthRPC) EthGetBlockTransactionCountByNumber(blockNumber *big.Int) (uint64, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer rpc.putClient(client)
-	block, err := client.conn.BlockByNumber(context.Background(), blockNumber)
+	block, err := client.conn.BlockByNumber(ctx, blockNumber)
 	if err != nil {
 		return 0, err
 	}
@@ -221,6 +278,14 @@ func (rpc *EthRPC) Compile(sourceFiles ...string) (*CompileResult, error) {
 
 func (rpc *EthRPC) DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code string, args []interface{}, opts ...TransactionOption) (string, uint64, error) {
 	transactionOpts := &TransactionOptions{}
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	defer rpc.putClient(client)
+
 	// set transaction options
 	for _, opt := range opts {
 		opt(transactionOpts)
@@ -246,12 +311,6 @@ func (rpc *EthRPC) DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code str
 		txOpts.GasLimit = transactionOpts.GasLimit
 	}
 
-	client, err := rpc.pool.Get(context.Background())
-	if err != nil {
-		return "", 0, err
-	}
-	defer rpc.putClient(client)
-
 	address, tx, _, err := bind.DeployContract(txOpts, abi, common.FromHex(code), client.conn, args...)
 	if err != nil {
 		return "", 0, err
@@ -259,7 +318,7 @@ func (rpc *EthRPC) DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code str
 	// try three times
 	var receipt *types.Receipt
 	if err := retry.Retry(func(attempt uint) error {
-		receipt, err = client.conn.TransactionReceipt(context.Background(), tx.Hash())
+		receipt, err = client.conn.TransactionReceipt(ctx, tx.Hash())
 		if err != nil {
 			return err
 		}
@@ -274,6 +333,14 @@ func (rpc *EthRPC) DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code str
 }
 
 func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args []interface{}, opts ...TransactionOption) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rpc.putClient(client)
+
 	if len(result.Abi) == 0 || len(result.Bin) == 0 || len(result.Names) == 0 {
 		return nil, fmt.Errorf("empty contract")
 	}
@@ -308,12 +375,6 @@ func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args
 		txOpts.GasLimit = transactionOpts.GasLimit
 	}
 
-	client, err := rpc.pool.Get(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	defer rpc.putClient(client)
-
 	addresses := make([]string, 0)
 	for i, bin := range result.Bin {
 		if bin == "0x" {
@@ -333,7 +394,7 @@ func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args
 		time.Sleep(waitReceipt)
 		var receipt *types.Receipt
 		if err := retry.Retry(func(attempt uint) error {
-			receipt, err = client.conn.TransactionReceipt(context.Background(), tx.Hash())
+			receipt, err = client.conn.TransactionReceipt(ctx, tx.Hash())
 			if err != nil {
 				return err
 			}
@@ -350,7 +411,9 @@ func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args
 }
 
 func (rpc *EthRPC) EthCall(contractAbi *abi.ABI, address string, method string, args []interface{}) ([]interface{}, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +429,7 @@ func (rpc *EthRPC) EthCall(contractAbi *abi.ABI, address string, method string, 
 	if !contractAbi.Methods[method].IsConstant() {
 		return nil, fmt.Errorf("EthCall function need the method is read-only")
 	}
-	output, err := client.conn.CallContract(context.Background(), msg, nil)
+	output, err := client.conn.CallContract(ctx, msg, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +450,9 @@ func (rpc *EthRPC) EthCall(contractAbi *abi.ABI, address string, method string, 
 }
 
 func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +471,7 @@ func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, addre
 	}
 	msg := ethereum.CallMsg{From: from, To: &to, Data: packed}
 	if contractAbi.Methods[method].IsConstant() {
-		output, err := client.conn.CallContract(context.Background(), msg, nil)
+		output, err := client.conn.CallContract(ctx, msg, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -452,12 +517,14 @@ func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, addre
 }
 
 func (rpc *EthRPC) EthGasPrice() (*big.Int, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
-	price, err := client.conn.SuggestGasPrice(context.Background())
+	price, err := client.conn.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -471,14 +538,16 @@ func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, e
 		otherError error
 	)
 
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
 
 	err = retry.Retry(func(attempt uint) error {
-		receipt, err = client.conn.TransactionReceipt(context.Background(), hash)
+		receipt, err = client.conn.TransactionReceipt(ctx, hash)
 		if err != nil {
 			return err
 		}
@@ -494,12 +563,14 @@ func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, e
 }
 
 func (rpc *EthRPC) EthGetTransactionCount(account common.Address, blockNumber *big.Int) (uint64, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer rpc.putClient(client)
-	nonce, err := client.conn.NonceAt(context.Background(), account, blockNumber)
+	nonce, err := client.conn.NonceAt(ctx, account, blockNumber)
 	if err != nil {
 		return 0, err
 	}
@@ -511,19 +582,21 @@ func (rpc *EthRPC) EthGetBlockByNumber(blockNumber *big.Int, fullTx bool) (*type
 		err   error
 		block *types.Block
 	)
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
 	if !fullTx {
-		blockHeader, err := client.conn.HeaderByNumber(context.Background(), blockNumber)
+		blockHeader, err := client.conn.HeaderByNumber(ctx, blockNumber)
 		if err != nil {
 			return nil, err
 		}
 		return types.NewBlockWithHeader(blockHeader), nil
 	}
-	block, err = client.conn.BlockByNumber(context.Background(), blockNumber)
+	block, err = client.conn.BlockByNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -531,12 +604,14 @@ func (rpc *EthRPC) EthGetBlockByNumber(blockNumber *big.Int, fullTx bool) (*type
 }
 
 func (rpc *EthRPC) EthGetBalance(account common.Address, blockNumber *big.Int) (*big.Int, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rpc.putClient(client)
-	balance, err := client.conn.BalanceAt(context.Background(), account, blockNumber)
+	balance, err := client.conn.BalanceAt(ctx, account, blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +619,9 @@ func (rpc *EthRPC) EthGetBalance(account common.Address, blockNumber *big.Int) (
 }
 
 func (rpc *EthRPC) EthSendTransaction(privKey *ecdsa.PrivateKey, transaction *types.Transaction) (common.Hash, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -553,7 +630,7 @@ func (rpc *EthRPC) EthSendTransaction(privKey *ecdsa.PrivateKey, transaction *ty
 	if err != nil {
 		return common.Hash{}, err
 	}
-	err = client.conn.SendTransaction(context.Background(), signTx)
+	err = client.conn.SendTransaction(ctx, signTx)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -561,12 +638,14 @@ func (rpc *EthRPC) EthSendTransaction(privKey *ecdsa.PrivateKey, transaction *ty
 }
 
 func (rpc *EthRPC) EthSendRawTransaction(transaction *types.Transaction) (common.Hash, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	defer rpc.putClient(client)
-	err = client.conn.SendTransaction(context.Background(), transaction)
+	err = client.conn.SendTransaction(ctx, transaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -601,12 +680,14 @@ func (rpc *EthRPC) EthSendRawTransactionWithReceipt(transaction *types.Transacti
 }
 
 func (rpc *EthRPC) EthGetCode(account common.Address, blockNumber *big.Int) (string, error) {
-	client, err := rpc.pool.Get(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
+	defer cancel()
+	client, err := rpc.pool.Get(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer rpc.putClient(client)
-	code, err := client.conn.CodeAt(context.Background(), account, blockNumber)
+	code, err := client.conn.CodeAt(ctx, account, blockNumber)
 	if err != nil || len(code) == 0 {
 		return "0x", err
 	}
