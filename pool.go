@@ -133,17 +133,18 @@ func (p *Pool) Close() {
 	if p.clients == nil {
 		return
 	}
+	clients := p.clients
 	p.clients = nil
 	p.mu.Unlock()
 
-	for i := 0; i < cap(p.clients); i++ {
-		client := <-p.clients
+	for i := 0; i < cap(clients); i++ {
+		client := <-clients
 		if client.conn == nil {
 			continue
 		}
 		client.conn.Close()
 	}
-	close(p.clients)
+	close(clients)
 }
 
 func (p *Pool) getClients() chan *clientConn {
