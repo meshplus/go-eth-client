@@ -144,7 +144,7 @@ func (rpc *EthRPC) newClient() (*ethclient.Client, string, error) {
 		rpc.logger.Errorf("Dial url %s failed", rpc.urls[randIndex])
 		return nil, "", fmt.Errorf("dial url %s failed", rpc.urls[randIndex])
 	}
-	rpc.logger.Infof("Create instance that dial with %s successfully", rpc.urls[randIndex])
+	rpc.logger.Debugf("Create instance that dial with %s successfully", rpc.urls[randIndex])
 	return client, rpc.urls[randIndex], nil
 }
 
@@ -171,7 +171,7 @@ func (rpc *EthRPC) wrapper(f func(ctx context.Context, client *clientConn) error
 				return err
 			}
 			return nil
-		}, strategy.Wait(500*time.Millisecond), strategy.Limit(5)); err != nil {
+		}, strategy.Wait(200*time.Millisecond), strategy.Limit(3)); err != nil {
 			// if still failed after retry 5 times, close the client
 			client.Close()
 			rpc.logger.Errorf("close connection with %s", client.url)
