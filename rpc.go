@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -155,6 +156,7 @@ func (rpc *EthRPC) putClient(client *clientConn) {
 }
 
 func (rpc *EthRPC) wrapper(f func(ctx context.Context, client *clientConn) error) error {
+	var otherErr error
 	if err := retry.Retry(func(attempt uint) error {
 		ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
 		defer cancel()
@@ -167,8 +169,12 @@ func (rpc *EthRPC) wrapper(f func(ctx context.Context, client *clientConn) error
 			ctx, cancel := context.WithTimeout(context.Background(), rpc.callTimeout)
 			defer cancel()
 			if err := f(ctx, client); err != nil {
-				rpc.logger.Warningf("request to %s failed: %s", client.url, err.Error())
-				return err
+				rpc.logger.Warning(err.Error())
+				// if error is 'connection refused', retry
+				if strings.Contains(err.Error(), "connection refused") {
+					return err
+				}
+				otherErr = err
 			}
 			return nil
 		}, strategy.Wait(200*time.Millisecond), strategy.Limit(3)); err != nil {
@@ -180,6 +186,10 @@ func (rpc *EthRPC) wrapper(f func(ctx context.Context, client *clientConn) error
 		return nil
 	}, strategy.Wait(1*time.Second), strategy.Limit(uint(2*len(rpc.urls)))); err != nil {
 		return err
+	}
+
+	if otherErr != nil {
+		return otherErr
 	}
 	return nil
 }
@@ -335,15 +345,14 @@ func (rpc *EthRPC) DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code str
 		if err != nil {
 			return err
 		}
-		return nil
-	}); err != nil {
-		return "", 0, err
-	}
-	// get receipt
-	if err := rpc.wrapper(func(ctx context.Context, client *clientConn) error {
-		var err error
-		receipt, err = client.conn.TransactionReceipt(ctx, tx.Hash())
-		if err != nil {
+		time.Sleep(waitReceipt)
+		if err := retry.Retry(func(attempt uint) error {
+			receipt, err = client.conn.TransactionReceipt(ctx, tx.Hash())
+			if err != nil {
+				return err
+			}
+			return nil
+		}, strategy.Limit(5), strategy.Backoff(backoff.Fibonacci(200*time.Millisecond))); err != nil {
 			return err
 		}
 		return nil
@@ -414,16 +423,14 @@ func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args
 			if err != nil {
 				return err
 			}
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-		time.Sleep(waitReceipt)
-		// get receipt
-		if err := rpc.wrapper(func(ctx context.Context, client *clientConn) error {
-			var err error
-			receipt, err = client.conn.TransactionReceipt(ctx, tx.Hash())
-			if err != nil {
+			time.Sleep(waitReceipt)
+			if err := retry.Retry(func(attempt uint) error {
+				receipt, err = client.conn.TransactionReceipt(ctx, tx.Hash())
+				if err != nil {
+					return err
+				}
+				return nil
+			}, strategy.Limit(5), strategy.Backoff(backoff.Fibonacci(200*time.Millisecond))); err != nil {
 				return err
 			}
 			return nil
@@ -566,8 +573,13 @@ func (rpc *EthRPC) EthGetTransactionReceipt(hash common.Hash) (*types.Receipt, e
 		err     error
 	)
 	if err := rpc.wrapper(func(ctx context.Context, client *clientConn) error {
-		receipt, err = client.conn.TransactionReceipt(ctx, hash)
-		if err != nil {
+		if err := retry.Retry(func(attempt uint) error {
+			receipt, err = client.conn.TransactionReceipt(ctx, hash)
+			if err != nil {
+				return err
+			}
+			return nil
+		}, strategy.Limit(5), strategy.Backoff(backoff.Fibonacci(200*time.Millisecond))); err != nil {
 			return err
 		}
 		return nil
