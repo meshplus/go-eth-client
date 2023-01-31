@@ -15,8 +15,8 @@ const (
 	defaultIdleTimeout = 6 * time.Minute
 )
 
-// Factory is a function type creating an eth client
-type Factory func() (*ethclient.Client, error)
+// Factory is a function type creating an eth client and return url of client
+type Factory func() (*ethclient.Client, string, error)
 
 // Pool is the eth client pool
 type Pool struct {
@@ -29,6 +29,7 @@ type Pool struct {
 // clientConn is the wrapper for an eth client conn
 type clientConn struct {
 	conn     *ethclient.Client
+	url      string
 	timeUsed time.Time
 }
 
@@ -53,13 +54,14 @@ func NewPool(factory Factory, init, capacity int, idleTimeout time.Duration) (*P
 		idleTimeout: idleTimeout,
 	}
 	for i := 0; i < init; i++ {
-		c, err := factory()
+		c, u, err := factory()
 		if err != nil {
 			return nil, err
 		}
 
 		p.clients <- &clientConn{
 			conn:     c,
+			url:      u,
 			timeUsed: time.Now(),
 		}
 	}
@@ -91,14 +93,13 @@ func (p *Pool) Get(ctx context.Context) (*clientConn, error) {
 
 	// If the client was idle too long, close the connection
 	if client.conn != nil && client.timeUsed.Add(p.idleTimeout).Before(time.Now()) {
-		client.conn.Close()
-		client.conn = nil
+		client.Close()
 	}
 
 	// Create a new connection
 	if client.conn == nil {
 		var err error
-		client.conn, err = p.factory()
+		client.conn, client.url, err = p.factory()
 		// If there was an error, we put back a placeholder client in the channel
 		if err != nil {
 			clients <- &clientConn{}
@@ -137,14 +138,14 @@ func (p *Pool) Close() {
 	p.clients = nil
 	p.mu.Unlock()
 
+	close(clients) // get nil value when read from a closed channel
 	for i := 0; i < cap(clients); i++ {
 		client := <-clients
 		if client.conn == nil {
 			continue
 		}
-		client.conn.Close()
+		client.Close()
 	}
-	close(clients)
 }
 
 func (p *Pool) getClients() chan *clientConn {
@@ -152,4 +153,9 @@ func (p *Pool) getClients() chan *clientConn {
 	defer p.mu.RUnlock()
 
 	return p.clients
+}
+
+func (c *clientConn) Close() {
+	c.conn.Close()
+	c.conn = nil
 }
