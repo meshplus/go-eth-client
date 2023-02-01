@@ -39,7 +39,7 @@ func NewPool(factory Factory, init, capacity int, idleTimeout time.Duration) (*P
 	if capacity <= 0 {
 		capacity = defaultCap
 	}
-	if init < 0 {
+	if init <= 0 {
 		init = defaultInit
 	}
 	if init > capacity {
@@ -141,7 +141,7 @@ func (p *Pool) Close() {
 	close(clients) // get nil value when read from a closed channel
 	for i := 0; i < cap(clients); i++ {
 		client := <-clients
-		if client.conn == nil {
+		if client == nil || client.conn == nil {
 			continue
 		}
 		client.Close()
