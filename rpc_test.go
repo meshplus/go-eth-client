@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -21,19 +23,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	client  *EthRPC
+	account *keystore.Key
+)
+
+func TestMain(m *testing.M) {
+	var err error
+	client, err = New(
+		WithUrls([]string{
+			"http://localhost:8881",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+		}),
+	)
+	if err != nil {
+		panic(err)
+	}
+	account, err = utils.LoadAccount("./testdata/config")
+	if err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	os.Exit(code)
+}
+
 func TestCompile(t *testing.T) {
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
 	require.NotNil(t, result)
 }
 
 func TestDeployByCode(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	file, err := ioutil.ReadFile("./testdata/data.abi")
 	assert.Nil(t, err)
 	abi, err := abi.JSON(bytes.NewReader(file))
@@ -49,10 +71,6 @@ func TestDeployByCode(t *testing.T) {
 }
 
 func TestDeploy(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
 	addresses, err := client.Deploy(account.PrivateKey, result, nil)
@@ -61,11 +79,7 @@ func TestDeploy(t *testing.T) {
 	fmt.Println(addresses[0])
 }
 
-func TestEthRPC_EthCall(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
+func TestEthCall(t *testing.T) {
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
 	addresses, err := client.Deploy(account.PrivateKey, result, nil)
@@ -89,10 +103,6 @@ func TestEthRPC_EthCall(t *testing.T) {
 }
 
 func TestInvokeEthContract(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
 	addresses, err := client.Deploy(account.PrivateKey, result, nil)
@@ -116,8 +126,6 @@ func TestInvokeEthContract(t *testing.T) {
 }
 
 func TestGetLatestBlock(t *testing.T) {
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	block, err := client.EthGetBlockByNumber(nil, false)
 	require.Nil(t, err)
 	require.NotNil(t, block)
@@ -153,18 +161,12 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestEthGasPrice(t *testing.T) {
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	price, err := client.EthGasPrice()
 	require.Nil(t, err)
 	require.Equal(t, "50000", price.String())
 }
 
 func TestEthEstimateGas(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	price, err := client.EthGasPrice()
 	require.Nil(t, err)
 	to := common.HexToAddress("0xeedFef830c6FBDDA3257AC883126995702F0eea3")
@@ -178,12 +180,8 @@ func TestEthEstimateGas(t *testing.T) {
 	require.Equal(t, uint64(21000), gas)
 }
 
-//TODO
+// TODO
 func TestEthGetTransactionByHash(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
@@ -199,12 +197,8 @@ func TestEthGetTransactionByHash(t *testing.T) {
 	reflect.DeepEqual(tx, actualTx)
 }
 
-//TODO
+// TODO
 func TestEthGetTransactionByBlockHashAndIndex(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
@@ -221,10 +215,6 @@ func TestEthGetTransactionByBlockHashAndIndex(t *testing.T) {
 }
 
 func TestEthGetTransactionByBlockNumberAndIndex(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
@@ -240,8 +230,6 @@ func TestEthGetTransactionByBlockNumberAndIndex(t *testing.T) {
 }
 
 func TestEthGetBlockTransactionCountByHash(t *testing.T) {
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	block, err := client.EthGetBlockByNumber(nil, true)
 	require.Nil(t, err)
 	blockHash := block.Hash()
@@ -250,10 +238,6 @@ func TestEthGetBlockTransactionCountByHash(t *testing.T) {
 }
 
 func TestEthGetTransactionReceipt(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
@@ -269,30 +253,18 @@ func TestEthGetTransactionReceipt(t *testing.T) {
 }
 
 func TestEthGetTransactionCount(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
 	require.NotNil(t, nonce)
 }
 
 func TestEthGetBalance(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	balance, err := client.EthGetBalance(account.Address, nil)
 	require.Nil(t, err)
 	require.NotNil(t, balance)
 }
 
 func TestEthSendTransactionWithReceipt(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	nonce, err := client.EthGetTransactionCount(account.Address, nil)
 	require.Nil(t, err)
 	price, err := client.EthGasPrice()
@@ -306,10 +278,6 @@ func TestEthSendTransactionWithReceipt(t *testing.T) {
 }
 
 func TestEthCodeAt(t *testing.T) {
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-	client, err := New("http://localhost:8881")
-	require.Nil(t, err)
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
 	addresses, err := client.Deploy(account.PrivateKey, result, nil)
@@ -405,11 +373,6 @@ func prepareContract(t *testing.T, cli Client, privateKey *ecdsa.PrivateKey, con
 }
 
 func TestInvokeTupleContract(t *testing.T) {
-	cli, err := New("http://localhost:8881")
-	require.Nil(t, err)
-	account, err := utils.LoadAccount("./testdata/config")
-	require.Nil(t, err)
-
 	contractAbi, err := utils.LoadAbi("./testdata/data.abi")
 	require.Nil(t, err)
 	code, err := ioutil.ReadFile("./testdata/data.bin")
@@ -418,7 +381,7 @@ func TestInvokeTupleContract(t *testing.T) {
 	abiEvent, err := utils.InitializeParameter("./testdata/data.abi")
 	require.Nil(t, err)
 
-	prepareContract(t, cli, account.PrivateKey, contractAbi, string(code), abiEvent)
+	prepareContract(t, client, account.PrivateKey, contractAbi, string(code), abiEvent)
 
 	time.Sleep(5 * time.Millisecond)
 
@@ -457,6 +420,23 @@ func TestInvokeTupleContract(t *testing.T) {
 	assert.Nil(t, err)
 	args, err := utils.DecodeBytes(abiEvent, "publish", bodyBytes)
 	assert.Nil(t, err)
-	_, err = cli.Invoke(account.PrivateKey, &contractAbi, string(code), "publish", args)
+	_, err = client.Invoke(account.PrivateKey, &contractAbi, string(code), "publish", args)
 	assert.Nil(t, err)
+}
+
+func TestEthSendRawTransaction(t *testing.T) {
+	nonce, err := client.EthGetTransactionCount(account.Address, nil)
+	require.Nil(t, err)
+	price, err := client.EthGasPrice()
+	require.Nil(t, err)
+	pk, err := crypto.GenerateKey()
+	require.Nil(t, err)
+	tx := utils.NewTransaction(nonce, crypto.PubkeyToAddress(pk.PublicKey), uint64(10000000), price, nil, big.NewInt(1))
+	signTx, err := types.SignTx(tx, types.NewEIP155Signer(client.EthGetChainId()), account.PrivateKey)
+	require.Nil(t, err)
+	txHash, err := client.EthSendRawTransaction(signTx)
+	require.Nil(t, err)
+	receipt, err := client.EthGetTransactionReceipt(txHash)
+	require.Nil(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
 }
