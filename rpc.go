@@ -692,7 +692,6 @@ func (rpc *EthRPC) EthSendRawTransactionWithReceipt(transaction *types.Transacti
 	if err != nil {
 		return nil, err
 	}
-
 	time.Sleep(waitReceipt)
 	receipt, err := rpc.EthGetTransactionReceipt(hash)
 	if err != nil {
