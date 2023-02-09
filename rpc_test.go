@@ -73,7 +73,7 @@ func TestDeployByCode(t *testing.T) {
 func TestDeploy(t *testing.T) {
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
-	addresses, err := client.Deploy(account.PrivateKey, result, nil)
+	addresses, err := client.DeployWithReceipt(account.PrivateKey, result, nil)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(addresses))
 	fmt.Println(addresses[0])
@@ -82,7 +82,7 @@ func TestDeploy(t *testing.T) {
 func TestEthCall(t *testing.T) {
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
-	addresses, err := client.Deploy(account.PrivateKey, result, nil)
+	addresses, err := client.DeployWithReceipt(account.PrivateKey, result, nil)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(addresses))
 
@@ -91,7 +91,7 @@ func TestEthCall(t *testing.T) {
 	require.Nil(t, err)
 	args, err := utils.Decode(&contractAbi, "store", "5")
 	require.Nil(t, err)
-	_, err = client.Invoke(account.PrivateKey, &contractAbi, addresses[0], "store", args)
+	_, err = client.InvokeWithReceipt(account.PrivateKey, &contractAbi, addresses[0], "store", args)
 	require.Nil(t, err)
 
 	time.Sleep(time.Second)
@@ -105,7 +105,7 @@ func TestEthCall(t *testing.T) {
 func TestInvokeEthContract(t *testing.T) {
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
-	addresses, err := client.Deploy(account.PrivateKey, result, nil)
+	addresses, err := client.DeployWithReceipt(account.PrivateKey, result, nil)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(addresses))
 
@@ -114,11 +114,11 @@ func TestInvokeEthContract(t *testing.T) {
 	require.Nil(t, err)
 	args, err := utils.Decode(&contractAbi, "store", "2")
 	require.Nil(t, err)
-	_, err = client.Invoke(account.PrivateKey, &contractAbi, addresses[0], "store", args)
+	_, err = client.InvokeWithReceipt(account.PrivateKey, &contractAbi, addresses[0], "store", args)
 	require.Nil(t, err)
 
 	time.Sleep(time.Second)
-	res, err := client.Invoke(account.PrivateKey, &contractAbi, addresses[0], "retrieve", nil)
+	res, err := client.InvokeWithReceipt(account.PrivateKey, &contractAbi, addresses[0], "retrieve", nil)
 	require.Nil(t, err)
 	v, ok := res[0].(*big.Int)
 	require.Equal(t, true, ok)
@@ -280,7 +280,7 @@ func TestEthSendTransactionWithReceipt(t *testing.T) {
 func TestEthCodeAt(t *testing.T) {
 	result, err := client.Compile("./testdata/storage.sol")
 	require.Nil(t, err)
-	addresses, err := client.Deploy(account.PrivateKey, result, nil)
+	addresses, err := client.DeployWithReceipt(account.PrivateKey, result, nil)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(addresses))
 	code, err := client.EthGetCode(common.HexToAddress(addresses[0]), nil)
@@ -351,7 +351,7 @@ func prepareContract(t *testing.T, cli Client, privateKey *ecdsa.PrivateKey, con
 	assert.Nil(t, err)
 	input1, err := utils.DecodeBytes(abiEvent, "registerOrg", bodyBytes1)
 	require.Nil(t, err)
-	_, err = cli.Invoke(privateKey, &contractAbi, contractAddr, "registerOrg", input1)
+	_, err = cli.InvokeWithReceipt(privateKey, &contractAbi, contractAddr, "registerOrg", input1)
 	assert.Nil(t, err)
 
 	fmt.Println("register user")
@@ -367,7 +367,7 @@ func prepareContract(t *testing.T, cli Client, privateKey *ecdsa.PrivateKey, con
 	assert.Nil(t, err)
 	input2, err := utils.DecodeBytes(abiEvent, "registerUser", bodyBytes2)
 	require.Nil(t, err)
-	_, err = cli.Invoke(privateKey, &contractAbi, contractAddr, "registerUser", input2)
+	_, err = cli.InvokeWithReceipt(privateKey, &contractAbi, contractAddr, "registerUser", input2)
 	assert.Nil(t, err)
 	return contractAddr
 }
@@ -420,7 +420,7 @@ func TestInvokeTupleContract(t *testing.T) {
 	assert.Nil(t, err)
 	args, err := utils.DecodeBytes(abiEvent, "publish", bodyBytes)
 	assert.Nil(t, err)
-	_, err = client.Invoke(account.PrivateKey, &contractAbi, string(code), "publish", args)
+	_, err = client.InvokeWithReceipt(account.PrivateKey, &contractAbi, string(code), "publish", args)
 	assert.Nil(t, err)
 }
 

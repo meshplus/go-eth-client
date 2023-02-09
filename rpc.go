@@ -326,6 +326,7 @@ func (rpc *EthRPC) DeployByCode(privKey *ecdsa.PrivateKey, abi abi.ABI, code str
 		}
 		transactionOpts.Nonce = nonce
 	}
+
 	txOpts.Nonce = big.NewInt(int64(transactionOpts.Nonce))
 	if transactionOpts.GasLimit == 0 {
 		txOpts.GasLimit = 100000000
@@ -370,34 +371,49 @@ func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args
 		return nil, fmt.Errorf("empty contract")
 	}
 
-	transactionOpts := &TransactionOptions{}
-	// set transaction options
-	for _, opt := range opts {
-		opt(transactionOpts)
-	}
-	// load privateKey
-	if transactionOpts.PrivateKey != nil {
-		privKey = transactionOpts.PrivateKey
-	}
-	txOpts, err := bind.NewKeyedTransactorWithChainID(privKey, rpc.cid)
+	txOpts, err := rpc.generateTxOpts(privKey, opts...)
 	if err != nil {
 		return nil, err
 	}
-	txOpts.GasPrice = transactionOpts.GasPrice
 
-	if transactionOpts.Nonce == 0 {
-		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(privKey.PublicKey), nil)
+	addresses := make([]string, 0)
+	for i, bin := range result.Bin {
+		if bin == "0x" {
+			continue
+		}
+		parsed, err := abi.JSON(strings.NewReader(result.Abi[i]))
 		if err != nil {
 			return nil, err
 		}
-		transactionOpts.Nonce = nonce
+		code := strings.TrimPrefix(strings.TrimSpace(bin), "0x")
+
+		var address common.Address
+		// deploy contract
+		if err := rpc.wrapper(func(ctx context.Context, client *clientConn) error {
+			var err error
+			address, _, _, err = bind.DeployContract(txOpts, parsed, common.FromHex(code), client.conn, args...)
+			if err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		addresses = append(addresses, address.String())
+	}
+	return addresses, nil
+}
+
+func (rpc *EthRPC) DeployWithReceipt(privKey *ecdsa.PrivateKey, result *CompileResult, args []interface{},
+	opts ...TransactionOption) ([]string, error) {
+
+	if len(result.Abi) == 0 || len(result.Bin) == 0 || len(result.Names) == 0 {
+		return nil, fmt.Errorf("empty contract")
 	}
 
-	txOpts.Nonce = big.NewInt(int64(transactionOpts.Nonce))
-	if transactionOpts.GasLimit == 0 {
-		txOpts.GasLimit = 100000000
-	} else {
-		txOpts.GasLimit = transactionOpts.GasLimit
+	txOpts, err := rpc.generateTxOpts(privKey, opts...)
+	if err != nil {
+		return nil, err
 	}
 
 	addresses := make([]string, 0)
@@ -445,6 +461,40 @@ func (rpc *EthRPC) Deploy(privKey *ecdsa.PrivateKey, result *CompileResult, args
 	return addresses, nil
 }
 
+func (rpc *EthRPC) generateTxOpts(privKey *ecdsa.PrivateKey, opts ...TransactionOption) (*bind.TransactOpts, error) {
+	transactionOpts := &TransactionOptions{}
+	// set transaction options
+	for _, opt := range opts {
+		opt(transactionOpts)
+	}
+	// load privateKey
+	if transactionOpts.PrivateKey != nil {
+		privKey = transactionOpts.PrivateKey
+	}
+	txOpts, err := bind.NewKeyedTransactorWithChainID(privKey, rpc.cid)
+	if err != nil {
+		return nil, err
+	}
+	txOpts.GasPrice = transactionOpts.GasPrice
+
+	if transactionOpts.Nonce == 0 {
+		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(privKey.PublicKey), nil)
+		if err != nil {
+			return nil, err
+		}
+		transactionOpts.Nonce = nonce
+	}
+
+	txOpts.Nonce = big.NewInt(int64(transactionOpts.Nonce))
+	if transactionOpts.GasLimit == 0 {
+		txOpts.GasLimit = 100000000
+	} else {
+		txOpts.GasLimit = transactionOpts.GasLimit
+	}
+
+	return txOpts, nil
+}
+
 func (rpc *EthRPC) EthCall(contractAbi *abi.ABI, address string, method string, args []interface{}) ([]interface{}, error) {
 	var invokeRes []interface{}
 	to := common.HexToAddress(address)
@@ -486,7 +536,19 @@ func (rpc *EthRPC) EthCall(contractAbi *abi.ABI, address string, method string, 
 	return invokeRes, nil
 }
 
-func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
+func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string,
+	args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
+	return rpc.invoke(false, privKey, contractAbi, address, method, args, opts...)
+}
+
+func (rpc *EthRPC) InvokeWithReceipt(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string, method string,
+	args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
+	return rpc.invoke(true, privKey, contractAbi, address, method, args, opts...)
+}
+
+func (rpc *EthRPC) invoke(withReceipt bool, privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, address string,
+	method string, args []interface{}, opts ...TransactionOption) ([]interface{}, error) {
+
 	var invokeRes []interface{}
 	txOpts := &TransactionOptions{}
 	for _, opt := range opts {
@@ -525,31 +587,39 @@ func (rpc *EthRPC) Invoke(privKey *ecdsa.PrivateKey, contractAbi *abi.ABI, addre
 			return nil, err
 		}
 		return invokeRes, nil
-	} else {
-		if txOpts.Nonce == 0 {
-			nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(privKey.PublicKey), nil)
-			if err != nil {
-				return nil, err
-			}
-			txOpts.Nonce = nonce
+	}
+
+	if txOpts.Nonce == 0 {
+		nonce, err := rpc.EthGetTransactionCount(crypto.PubkeyToAddress(privKey.PublicKey), nil)
+		if err != nil {
+			return nil, err
 		}
-		if txOpts.GasLimit == 0 {
-			txOpts.GasLimit = 1000000
+		txOpts.Nonce = nonce
+	}
+	if txOpts.GasLimit == 0 {
+		txOpts.GasLimit = 1000000
+	}
+	if txOpts.GasPrice == nil {
+		price, err := rpc.EthGasPrice()
+		if err != nil {
+			return nil, err
 		}
-		if txOpts.GasPrice == nil {
-			price, err := rpc.EthGasPrice()
-			if err != nil {
-				return nil, err
-			}
-			txOpts.GasPrice = price
-		}
-		tx := utils.NewTransaction(txOpts.Nonce, to, txOpts.GasLimit, txOpts.GasPrice, packed, nil)
+		txOpts.GasPrice = price
+	}
+
+	tx := utils.NewTransaction(txOpts.Nonce, to, txOpts.GasLimit, txOpts.GasPrice, packed, nil)
+	if withReceipt {
 		receipt, err := rpc.EthSendTransactionWithReceipt(privKey, tx)
 		if err != nil {
 			return nil, fmt.Errorf("invoke err:%s", err)
 		}
 		return []interface{}{receipt}, nil
 	}
+	hash, err := rpc.EthSendTransaction(privKey, tx)
+	if err != nil {
+		return nil, fmt.Errorf("invoke err:%s", err)
+	}
+	return []interface{}{hash}, nil
 }
 
 func (rpc *EthRPC) EthGasPrice() (*big.Int, error) {
