@@ -32,3 +32,16 @@ func NewTransaction(nonce uint64, address common.Address, gas uint64, gasPrice *
 		Value:    value,
 	})
 }
+
+func NewDynamicFeeTransaction(chainid *big.Int, nonce uint64, address common.Address, gas uint64, gasPrice *big.Int, data []byte, value *big.Int) *types.Transaction {
+	return types.NewTx(&types.DynamicFeeTx{
+		ChainID:   chainid,
+		Nonce:     nonce,
+		GasTipCap: gasPrice,
+		GasFeeCap: gasPrice,
+		Gas:       gas,
+		To:        &address,
+		Data:      data,
+		Value:     value,
+	})
+}

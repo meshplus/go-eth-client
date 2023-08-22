@@ -2,13 +2,17 @@ package go_eth_client
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,24 +22,28 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/go-eth-client/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	client  *EthRPC
-	account *keystore.Key
+	client       *EthRPC
+	account      *keystore.Key
+	adminAccount *keystore.Key
 )
 
 func TestMain(m *testing.M) {
 	var err error
 	client, err = New(
 		WithUrls([]string{
+			//"http://172.16.13.131:8545",
 			"http://localhost:8881",
-			"http://localhost:8882",
-			"http://localhost:8883",
-			"http://localhost:8884",
+			//"http://localhost:8882",
+			//"http://localhost:8883",
+			//"http://localhost:8884",
 		}),
 	)
 	if err != nil {
@@ -424,19 +432,151 @@ func TestInvokeTupleContract(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestEthSendRawTransaction(t *testing.T) {
-	nonce, err := client.EthGetTransactionCount(account.Address, nil)
+func decodeAccount(t *testing.T) {
+	//privateKeyHex := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	privateKeyHex := "b6477143e17f889263044f6cf463dc37177ac4526c4c39a7a344198457024a2f"
+	fmt.Println(len(privateKeyHex))
+
+	// 解码私钥的十六进制字符串
+	privateKeyBytes, err := hex.DecodeString(privateKeyHex)
+	if err != nil {
+		fmt.Println("私钥解码失败:", err)
+		return
+	}
+
+	// 将私钥转换为 ecdsa.PrivateKey 类型
+	privateKey := new(ecdsa.PrivateKey)
+	privateKey.Curve = secp256k1.S256() // 使用 secp256k1 曲线
+	privateKey.D = new(big.Int).SetBytes(privateKeyBytes)
+
+	// 生成公钥
+	privateKey.X, privateKey.Y = secp256k1.S256().ScalarBaseMult(privateKey.D.Bytes())
+
+	// 打印私钥和公钥
+	fmt.Println("私钥:", privateKey)
+	fmt.Println("公钥:", privateKey.PublicKey)
+	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
+	fmt.Println("地址:", addr)
+	adminAccount = &keystore.Key{
+		Address:    crypto.PubkeyToAddress(privateKey.PublicKey),
+		PrivateKey: privateKey,
+	}
+}
+
+func TestDynamicFeeEthSendRawTransaction(t *testing.T) {
+	decodeAccount(t)
+	nonce, err := client.EthGetTransactionCount(adminAccount.Address, nil)
 	require.Nil(t, err)
+	fmt.Println(nonce)
 	price, err := client.EthGasPrice()
 	require.Nil(t, err)
-	pk, err := crypto.GenerateKey()
+
+	val := "1"
+	bigInt := new(big.Int)
+	bigInt.SetString(val, 10)
+
+	tx := utils.NewDynamicFeeTransaction(client.EthGetChainId(), nonce, account.Address, uint64(7920028), price, nil, bigInt)
+	signTx, err := types.SignTx(tx, types.NewLondonSigner(client.EthGetChainId()), adminAccount.PrivateKey)
 	require.Nil(t, err)
-	tx := utils.NewTransaction(nonce, crypto.PubkeyToAddress(pk.PublicKey), uint64(10000000), price, nil, big.NewInt(1))
-	signTx, err := types.SignTx(tx, types.NewEIP155Signer(client.EthGetChainId()), account.PrivateKey)
-	require.Nil(t, err)
+
+	rawTx, err := signTx.MarshalBinary()
+	fmt.Println(hexutil.Encode(rawTx))
+
 	txHash, err := client.EthSendRawTransaction(signTx)
 	require.Nil(t, err)
+	time.Sleep(500 * time.Millisecond)
 	receipt, err := client.EthGetTransactionReceipt(txHash)
 	require.Nil(t, err)
 	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
+}
+
+func testEthSendRawTransaction(t *testing.T, txHashCh chan common.Hash) {
+	//decodeAccount(t)
+	nonce, err := client.EthGetTransactionCount(adminAccount.Address, big.NewInt(-1))
+	require.Nil(t, err)
+	fmt.Println(nonce)
+	//nonce = nonce + 2
+	price, err := client.EthGasPrice()
+	require.Nil(t, err)
+	//pk, err := crypto.GenerateKey()
+	//require.Nil(t, err)
+	val := "10000000000000000000000000"
+	bigInt := new(big.Int)
+	bigInt.SetString(val, 10)
+
+	tx := utils.NewTransaction(nonce, account.Address, uint64(7920028), price, nil, bigInt)
+	signTx, err := types.SignTx(tx, types.NewEIP155Signer(client.EthGetChainId()), adminAccount.PrivateKey)
+	require.Nil(t, err)
+	txHash, err := client.EthSendRawTransaction(signTx)
+	fmt.Println("txHash:", txHash)
+	require.Nil(t, err)
+	txHashCh <- txHash
+}
+
+func TestTransferBenchmark(t *testing.T) {
+	decodeAccount(t)
+	txHashCh := make(chan common.Hash, 102400)
+	go func() {
+		for {
+			select {
+			case txHash := <-txHashCh:
+				tx1, err := client.EthGetTransactionByHash(txHash)
+				require.Nil(t, err)
+				require.Equal(t, txHash, tx1.Hash())
+				fmt.Println("end check tx nonce:", tx1.Nonce())
+			default:
+			}
+		}
+	}()
+	for i := 0; i < 1; i++ {
+		testEthSendRawTransaction(t, txHashCh)
+	}
+}
+
+func TestEthSendRawTransactionBenchmark(t *testing.T) {
+	nonce, err := client.EthGetTransactionCount(account.Address, nil)
+	require.Nil(t, err)
+	fmt.Println(nonce)
+	thread := 500
+	current := nonce
+	txHashList := make([]common.Hash, 0)
+	lock := new(sync.Mutex)
+
+	wg := new(sync.WaitGroup)
+	start := time.Now().Unix()
+	timeTicker := time.NewTicker(1 * time.Second)
+	duration := 3600 * time.Second
+	ctx, _ := context.WithTimeout(context.Background(), duration)
+
+	for {
+		select {
+		case <-ctx.Done():
+			timeTicker.Stop()
+			end := time.Now().Unix() - start
+			fmt.Println("duration:", end)
+			fmt.Println("average tps is", int64(thread*60)/(end))
+			break
+		case <-timeTicker.C:
+			for i := 0; i < thread; i++ {
+				wg.Add(1)
+				go func(wg *sync.WaitGroup) {
+					defer wg.Done()
+					price, err := client.EthGasPrice()
+					require.Nil(t, err)
+					pk, err := crypto.GenerateKey()
+					require.Nil(t, err)
+					tx := utils.NewTransaction(atomic.AddUint64(&current, 1)-1, crypto.PubkeyToAddress(pk.PublicKey), uint64(10000000), price, nil, big.NewInt(0))
+					signTx, err := types.SignTx(tx, types.NewEIP155Signer(client.EthGetChainId()), account.PrivateKey)
+					require.Nil(t, err)
+					txHash, err := client.EthSendRawTransaction(signTx)
+					require.Nil(t, err)
+					lock.Lock()
+					txHashList = append(txHashList, txHash)
+					lock.Unlock()
+					time.Sleep(200 * time.Millisecond)
+				}(wg)
+			}
+			wg.Wait()
+		}
+	}
 }

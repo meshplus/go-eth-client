@@ -28,7 +28,7 @@ import (
 var _ Client = (*EthRPC)(nil)
 
 const (
-	defaultPoolSize        = 6               // 连接池默认大小
+	defaultPoolSize        = 60              // 连接池默认大小
 	defaultPoolInit        = 4               // 连接池默认初始连接数
 	defaultPoolIdleTimeout = 1 * time.Hour   // 连接池中连接的默认闲置时间阈值
 	defaultCallTimeout     = 6 * time.Second // 默认请求超时时间
