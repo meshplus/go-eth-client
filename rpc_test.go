@@ -41,9 +41,14 @@ func TestMain(m *testing.M) {
 		WithUrls([]string{
 			//"http://172.16.13.131:8545",
 			"http://localhost:8881",
-			//"http://localhost:8882",
-			//"http://localhost:8883",
-			//"http://localhost:8884",
+			"http://localhost:8882",
+			"http://localhost:8883",
+			"http://localhost:8884",
+
+			"http://172.16.13.130:8881",
+			"http://172.16.13.133:8882",
+			"http://172.16.13.134:8883",
+			"http://172.16.13.135:8884",
 		}),
 	)
 	if err != nil {
@@ -500,7 +505,7 @@ func testEthSendRawTransaction(t *testing.T, txHashCh chan common.Hash) {
 	require.Nil(t, err)
 	//pk, err := crypto.GenerateKey()
 	//require.Nil(t, err)
-	val := "10000000000000000000000000"
+	val := "100000000000000000000000000"
 	bigInt := new(big.Int)
 	bigInt.SetString(val, 10)
 
@@ -534,10 +539,12 @@ func TestTransferBenchmark(t *testing.T) {
 }
 
 func TestEthSendRawTransactionBenchmark(t *testing.T) {
-	nonce, err := client.EthGetTransactionCount(account.Address, nil)
+	decodeAccount(t)
+	account = adminAccount
+	nonce, err := client.EthGetTransactionCount(account.Address, big.NewInt(-1))
 	require.Nil(t, err)
-	fmt.Println(nonce)
-	thread := 500
+	fmt.Println("!!!!!!!!!!", nonce)
+	thread := 2500
 	current := nonce
 	txHashList := make([]common.Hash, 0)
 	lock := new(sync.Mutex)
